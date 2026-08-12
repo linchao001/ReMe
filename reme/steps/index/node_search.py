@@ -9,8 +9,13 @@ Five differences vs ``search``:
    row per digest node, not per chunk.
 2. **Frontmatter included** — returns ``name + description`` inline so the
    caller can triage without a follow-up ``frontmatter_read`` per hit.
-3. **Digest-only filter** — hardcoded to ``<digest_dir>/`` prefix; dream
-   never wants daily / resource hits as recall candidates.
+3. **Digest-only filter** — defaults to the ``<digest_dir>/`` prefix; dream never
+   wants daily / resource hits as recall candidates. Callers may override the
+   allowed path prefixes via the runtime-context field ``prefixes`` (a list of
+   path prefixes, or a single prefix string) to admit other workspace subtrees
+   — e.g. a knowledge base under ``knowledge/`` — while still excluding
+   everything outside the explicit list. When ``prefixes`` is omitted the
+   original digest-only behavior is preserved.
 4. **No expand_links** — dream's synapse recall is looking for nodes that
    *don't* yet have wikilinks; expansion would surface already-linked
    neighbors (anti-pattern for synapse construction).
@@ -75,6 +80,19 @@ class NodeSearchStep(BaseStep):
         digest_dir = self.config_value("digest_dir")
         digest_prefix = digest_dir.rstrip("/") + "/"
 
+        # Callers may widen recall beyond digest/ by passing ``prefixes`` in the
+        # runtime context (e.g. a knowledge-base subtree). Omitting it (or an
+        # all-empty list) keeps the original digest-only behavior, so dream
+        # Phase 2 is unaffected.
+        raw_prefixes = self.context.get("prefixes")
+        if raw_prefixes:
+            items = raw_prefixes if isinstance(raw_prefixes, list) else [raw_prefixes]
+            prefixes = [str(p).strip().rstrip("/") + "/" for p in items if str(p).strip()]
+        else:
+            prefixes = []
+        if not prefixes:
+            prefixes = [digest_prefix]
+
         # Over-fetch — digest filter drops a lot of raw hits.
         candidates = min(_MAX_CANDIDATES, max(1, int(limit * candidate_multiplier)))
 
@@ -84,7 +102,7 @@ class NodeSearchStep(BaseStep):
         )
 
         def _node_dedup(chunks: list) -> list[str]:
-            """Keep first occurrence per path; respect digest prefix only.
+            """Keep first occurrence per path; respect allowed prefixes only.
 
             Self-exclusion (e.g. UPDATE target) is the LLM's job: frontmatter
             inlining lets the agent recognize self from the candidate list.
@@ -95,7 +113,7 @@ class NodeSearchStep(BaseStep):
             for c in chunks:
                 if c.path in seen:
                     continue
-                if not c.path.startswith(digest_prefix):
+                if not any(c.path.startswith(p) for p in prefixes):
                     continue
                 seen.add(c.path)
                 out.append(c.path)
@@ -140,7 +158,7 @@ class NodeSearchStep(BaseStep):
             f"=== node_search query={query!r} hits={len(hits)}/{candidates} ===",
         ]
         if not hits:
-            lines.append("(no digest hits)")
+            lines.append("(no hits)")
         else:
             for h in hits:
                 lines.append(
@@ -150,6 +168,7 @@ class NodeSearchStep(BaseStep):
         self.context.response.success = True
         self.context.response.answer = "\n".join(lines)
         self.context.response.metadata["hits"] = hits
+        self.context.response.metadata["prefixes"] = prefixes
         self.context.response.metadata["counts"] = {
             "vector_raw": len(vector_chunks),
             "keyword_raw": len(keyword_chunks),
