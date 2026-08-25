@@ -1,0 +1,40 @@
+# Personal long-term memory + shared business knowledge base in one ReMe instance.
+# Personal memory (daily/digest/dream) stays in workspace_dir; business KB mounts at
+# workspace/{knowledge_dir} from ~/.reme/knowledge_bases (or REME_KNOWLEDGE_BASES_DIR).
+#
+# Start: reme start  (with REME_CONFIG=personal_with_kb in .env or shell)
+#        reme start config=personal_with_kb
+# One-shot personal dream: reme start job=auto_dream
+# One-shot KB dream: reme start job=knowledge_dream
+extends: default
+
+app_name: ZHB
+workspace_dir: ${REME_WORKSPACE_DIR:-.reme}
+timezone: Asia/Shanghai
+language: zh
+
+# Shared knowledge-base entity mounted into this workspace (cross-workspace, jointly maintained).
+knowledge_bases_dir: ${REME_KNOWLEDGE_BASES_DIR:-}
+knowledge_base_id: ${REME_KNOWLEDGE_BASE_ID:-zhb}
+knowledge_dir: knowledge
+knowledge_domain: business
+knowledge_write_mode: strict
+create_knowledge_base: false
+
+knowledge_scan_days: 2
+knowledge_max_units: 8
+
+jobs:
+  # default already includes dream_cron (personal) and knowledge_dream (on-demand).
+  knowledge_dream_cron:
+    backend: cron
+    cron: "0 23 * * *"
+    steps:
+      - backend: knowledge_dream_step
+        scan_days: 2
+        max_units: 8
+
+# Optional HTTP port override when running beside a personal-memory ReMe instance.
+service:
+  host: ${REME_BUSINESS_KB_HOST:-0.0.0.0}
+  port: ${REME_BUSINESS_KB_PORT:-8182}

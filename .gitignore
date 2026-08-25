@@ -6,7 +6,6 @@
 *.code-workspace
 
 # Local environment
-.env
 .env.*
 !.env.example
 !example.env
@@ -30,7 +29,6 @@ htmlcov/
 # Packaging / build outputs
 build/
 dist/
-node_modules/
 *.egg-info/
 
 # Website build integration source (not generated output)

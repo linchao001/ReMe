@@ -46,6 +46,46 @@ class ApplicationConfig(BaseModel):
     resource_dir: str = Field(default="resource", description="Subdirectory for external assets")
     daily_dir: str = Field(default="daily", description="Subdirectory for daily memory")
     digest_dir: str = Field(default="digest", description="Subdirectory for digest memory")
+    knowledge_bases_dir: str = Field(
+        default="",
+        description=(
+            "Root directory for shared knowledge-base entities. "
+            "Empty uses REME_KNOWLEDGE_BASES_DIR or ~/.reme/knowledge_bases."
+        ),
+    )
+    knowledge_base_id: str = Field(
+        default="",
+        description=(
+            "Active shared knowledge-base id to mount at workspace/{knowledge_dir}. "
+            "When set, ReMe indexes published buckets under the mount."
+        ),
+    )
+    knowledge_dir: str = Field(
+        default="knowledge",
+        description="Workspace mount name for the active shared knowledge base.",
+    )
+    create_knowledge_base: bool = Field(
+        default=False,
+        description="Create a KB skeleton when knowledge_base_id is missing on disk.",
+    )
+    knowledge_domain: str = Field(
+        default="business",
+        description="Knowledge dream extract domain: business or testcase.",
+    )
+    knowledge_write_mode: str = Field(
+        default="strict",
+        description="strict routes uncertain units to _inbox; open publishes directly.",
+    )
+    knowledge_scan_days: int = Field(default=2, ge=1, le=30)
+    knowledge_max_units: int = Field(default=8, ge=1, le=50)
+    knowledge_inbox_enabled: bool = Field(default=True)
+    knowledge_dedup_enabled: bool = Field(default=True)
+    knowledge_dedup_threshold: float = Field(default=0.78, ge=0.0, le=1.0)
+    knowledge_merge_enabled: bool = Field(default=True)
+    knowledge_merge_threshold: float = Field(default=0.82, ge=0.0, le=1.0)
+    knowledge_merge_margin: float = Field(default=0.15, ge=0.0, le=1.0)
+    knowledge_related_threshold: float = Field(default=0.70, ge=0.0, le=1.0)
+    knowledge_merge_max_updates: int = Field(default=5, ge=1)
     enable_logo: bool = Field(default=True, description="Show ASCII logo on startup")
     timezone: str | None = Field(default="Asia/Shanghai", description="IANA timezone; None uses local time")
     language: str = Field(default="", description="Default language for LLM interactions")

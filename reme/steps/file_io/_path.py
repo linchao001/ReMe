@@ -58,12 +58,19 @@ def validate_filename_component(name: str, *, kind: str = "filename") -> str | N
 
 
 def is_relative_to(path: Path, parent: Path) -> bool:
-    """Return True when ``path`` is equal to or nested under ``parent``."""
-    try:
-        path.relative_to(parent)
-        return True
-    except ValueError:
-        return False
+    """Return True when ``path`` is equal to or nested under ``parent``.
+
+    Prefer logical ``absolute()`` containment so in-workspace junction/symlink
+    mounts remain addressable. Fall back to ``resolve()`` when needed for
+    Windows short/long path normalization on ordinary files.
+    """
+    for normalizer in (lambda value: value.absolute(), lambda value: value.resolve()):
+        try:
+            normalizer(path).relative_to(normalizer(parent))
+            return True
+        except (ValueError, OSError):
+            continue
+    return False
 
 
 def display_path(workspace_path: Path, target: Path) -> str:
@@ -72,7 +79,7 @@ def display_path(workspace_path: Path, target: Path) -> str:
     Falls back to the absolute string when ``target`` is not under ``workspace_path``.
     """
     try:
-        return target.relative_to(workspace_path).as_posix()
+        return target.absolute().relative_to(workspace_path.absolute()).as_posix()
     except ValueError:
         return str(target)
 
@@ -100,20 +107,20 @@ def resolve_path(
     if s.startswith("~"):
         return None, f"file {s!r} does not exist"
     p = Path(s)
-    workspace = workspace_path.resolve()
+    workspace = workspace_path.absolute()
     if p.is_absolute():
         if Path(s).is_absolute():
             logger.info("absolute path detected, recommending relative paths")
-        target = p.resolve()
+        logical = Path(s).absolute()
     else:
         for part in p.parts:
             err = validate_filename_component(part, kind="path component")
             if err:
                 return None, err
-        target = (workspace / p).resolve()
-    if not is_relative_to(target, workspace):
+        logical = (workspace / p).absolute()
+    if not is_relative_to(logical, workspace):
         return None, "`path` must stay inside the workspace"
-    return target, None
+    return logical.resolve(), None
 
 
 def _check_path_permission(workspace_path: Path, target: Path, allowed_paths) -> bool:

@@ -261,7 +261,14 @@ def parse_args(*args: str) -> tuple[str, dict]:
 
 def resolve_app_config(*, log_config: bool = True, **kwargs) -> dict:
     """Resolve full app-start config: load `config=path` file, fall back to
-    `default`, then deep-merge with the remaining kwargs as overrides.
+    ``REME_CONFIG`` (when set) or ``default``, then deep-merge with the remaining
+    kwargs as overrides.
+
+    When ``workspace_dir`` is set, ``<workspace_dir>/.env`` is loaded before
+    config files are parsed so values such as ``LLM_API_KEY`` are available to
+    ``${VAR}`` expansion. If the effective workspace is only known after the
+    first merge, config loading is repeated once after that workspace ``.env``
+    is applied.
 
     Therefore ``reme start plugins=[...]`` layers that plugin selection over
     ``default.yaml`` without requiring an explicit ``config=default``.
@@ -270,27 +277,44 @@ def resolve_app_config(*, log_config: bool = True, **kwargs) -> dict:
     the requested job's output.
     """
     from ..utils import get_logger
+    from ..utils.env_utils import load_workspace_env
 
     logger = get_logger(log_to_file=False)
-    configs: list[dict] = []
+    load_workspace_env(kwargs.get("workspace_dir"))
 
-    # `config=path` arrives as a string here; `config.foo=bar` arrives as a
-    # nested dict and is left in `kwargs` to be merged as a normal override.
-    config_value = kwargs.get("config")
-    if isinstance(config_value, str):
-        kwargs.pop("config")
-        if log_config:
-            logger.info(f"Loading config: {config_value}")
-        configs.append(_load_config(config_value))
-    elif "default" in _CONFIG_REGISTRY:
-        if log_config:
-            logger.info("No config specified, loading 'default'")
-        configs.append(_load_config("default"))
+    def merge_configs() -> dict:
+        configs: list[dict] = []
+        config_kwargs = dict(kwargs)
 
-    configs.append(kwargs)
+        # `config=path` arrives as a string here; `config.foo=bar` arrives as a
+        # nested dict and is left in `kwargs` to be merged as a normal override.
+        config_value = config_kwargs.get("config")
+        if isinstance(config_value, str):
+            config_kwargs.pop("config")
+            if log_config:
+                logger.info(f"Loading config: {config_value}")
+            configs.append(_load_config(config_value))
+        else:
+            config_name = os.environ.get("REME_CONFIG") or "default"
+            if config_name not in _CONFIG_REGISTRY and not find_entry_points(CONFIG_ENTRY_POINT_GROUP, config_name):
+                if config_name == "default":
+                    return deep_merge_config({}, config_kwargs)
+                raise FileNotFoundError(f"Config file not found: {config_name}")
+            if log_config:
+                if os.environ.get("REME_CONFIG"):
+                    logger.info(f"No config specified, loading REME_CONFIG={config_name!r}")
+                else:
+                    logger.info("No config specified, loading 'default'")
+            configs.append(_load_config(config_name))
 
-    merged: dict = {}
-    for cfg in configs:
-        merged = deep_merge_config(merged, cfg)
+        configs.append(config_kwargs)
 
+        merged: dict = {}
+        for cfg in configs:
+            merged = deep_merge_config(merged, cfg)
+        return merged
+
+    merged = merge_configs()
+    if load_workspace_env(merged.get("workspace_dir")):
+        merged = merge_configs()
     return merged

@@ -106,7 +106,7 @@ class ListStep(BaseStep):
     async def execute(self):
         assert self.context is not None
         path, recursive, limit, sort_by, extensions = self._collect_params()
-        workspace_dir = Path(self.file_store.workspace_path or ".").resolve()
+        workspace_dir = Path(self.file_store.workspace_path or ".").absolute()
         target_dir, err = resolve_path(workspace_dir, path, allow_empty=True)
         if err or target_dir is None:
             self._fail(err or "invalid path", path=path)

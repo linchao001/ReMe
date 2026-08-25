@@ -17,6 +17,7 @@ import {
   prepareWorkspaceSnapshot,
   type PersistedWorkspaceState,
 } from "./workspace-persistence";
+import { createId } from "./create-id";
 import { markMarkdownContentSaved } from "./markdown-save";
 import { unsavedTabsClosedBy } from "./tab-close";
 
@@ -88,7 +89,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         return id;
       },
       openAgent: () => {
-        const id = `agent:${crypto.randomUUID()}`;
+        const id = `agent:${createId()}`;
         set((state) => ({
           tabs: [...state.tabs, { id, type: "agent", title: "", messages: [] }],
           activeTabId: id,

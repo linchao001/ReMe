@@ -18,6 +18,13 @@ from ..component_registry import R
 from ...enumeration import ComponentEnum
 
 
+def _credential_api_key(credential_data: dict) -> str:
+    api_key = credential_data.get("api_key", "")
+    if hasattr(api_key, "get_secret_value"):
+        api_key = api_key.get_secret_value()
+    return str(api_key or "").strip()
+
+
 class BaseAsLLM(BaseComponent):
     """Base wrapper for AgentScope chat models.
 
@@ -35,7 +42,15 @@ class BaseAsLLM(BaseComponent):
         if self.model is not None:
             return
         kwargs = dict(self.kwargs)
-        credential = self.credential_cls(**kwargs.pop("credential", {}))
+        credential_data = dict(kwargs.pop("credential", {}) or {})
+        if not _credential_api_key(credential_data):
+            self.logger.warning(
+                "%s:%s started without API credentials; LLM-backed jobs will fail until configured",
+                self.component_type.value,
+                self.name,
+            )
+            return
+        credential = self.credential_cls(**credential_data)
         model_cls = credential.get_chat_model_class()
         params_dict = kwargs.pop("parameters", None)
         parameters = model_cls.Parameters(**params_dict) if params_dict else None

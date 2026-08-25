@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
+import { APP_TITLE, BRAND_NAME } from "./branding";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -22,25 +23,25 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase,
-    title: "ReMe Studio",
+    title: APP_TITLE,
     description:
-      "Browse, edit, and discuss your local-first ReMe memory workspace.",
+      `Browse, edit, and discuss your local-first ${BRAND_NAME} memory workspace.`,
     icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
     openGraph: {
-      title: "ReMe Studio",
+      title: APP_TITLE,
       description: "本地优先的 Agent 记忆工作区",
       images: [
         {
           url: "/og.jpg",
           width: 1200,
           height: 626,
-          alt: "ReMe Studio memory workspace",
+          alt: `${APP_TITLE} memory workspace`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: "ReMe Studio",
+      title: APP_TITLE,
       description: "本地优先的 Agent 记忆工作区",
       images: ["/og.jpg"],
     },

@@ -398,6 +398,165 @@ jobs:
         vector_weight: 0.7
         candidate_multiplier: 5.0
 
+  list_knowledge_bases:
+    backend: base
+    description: "List shared knowledge bases under knowledge_bases_dir."
+    steps:
+      - backend: list_knowledge_bases_step
+
+  knowledge_base_meta:
+    backend: base
+    description: "Return metadata for the active or requested shared knowledge base."
+    parameters:
+      type: object
+      properties:
+        knowledge_base_id:
+          type: string
+          description: "Optional KB id; defaults to the configured knowledge_base_id."
+          default: ""
+    steps:
+      - backend: knowledge_base_meta_step
+
+  knowledge_search:
+    backend: base
+    description: "Hybrid search scoped to the mounted shared knowledge base (published buckets only)."
+    parameters:
+      type: object
+      properties:
+        query:
+          type: string
+          description: "search query"
+        limit:
+          type: integer
+          description: "max results"
+          default: 5
+        min_score:
+          type: number
+          description: "min fused score"
+          default: 0.0
+        bucket:
+          type: string
+          description: "Scope bucket: all, business, test, business/wiki, test/test_cases, ..."
+          default: "all"
+      required:
+        - query
+    steps:
+      - backend: knowledge_search_step
+        vector_weight: 0.7
+        candidate_multiplier: 5.0
+        expand_links: true
+        max_links_per_direction: 10
+
+  save_to_knowledge:
+    backend: base
+    description: "Explicitly write or refine one published node in the active shared knowledge base."
+    parameters:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        bucket:
+          type: string
+          default: "business/wiki"
+        preconditions:
+          type: string
+          default: ""
+        steps:
+          type: array
+          items:
+            type: string
+          default: []
+        expected:
+          type: string
+          default: ""
+        priority:
+          type: string
+          default: ""
+        requirement_id:
+          type: string
+          default: ""
+        links:
+          type: array
+          items:
+            type: string
+          default: []
+      required:
+        - title
+        - content
+    steps:
+      - backend: save_to_knowledge_step
+
+  knowledge_dream:
+    backend: base
+    description: "Extract recent daily notes into the mounted shared knowledge base."
+    parameters:
+      type: object
+      properties:
+        hint:
+          type: string
+          default: ""
+        scan_days:
+          type: integer
+          default: 2
+        max_units:
+          type: integer
+          default: 8
+    steps:
+      - backend: knowledge_dream_step
+
+  list_knowledge_inbox:
+    backend: base
+    description: "List pending _inbox drafts for the active shared knowledge base."
+    steps:
+      - backend: list_knowledge_inbox_step
+
+  promote_knowledge_inbox:
+    backend: base
+    description: "Promote one _inbox draft into its intended published bucket."
+    parameters:
+      type: object
+      properties:
+        stem:
+          type: string
+      required:
+        - stem
+    steps:
+      - backend: promote_knowledge_inbox_step
+
+  merge_knowledge_inbox:
+    backend: base
+    description: "Merge one _inbox draft into an existing published node."
+    parameters:
+      type: object
+      properties:
+        stem:
+          type: string
+        target_path:
+          type: string
+          default: ""
+        mode:
+          type: string
+          default: "REFINE"
+      required:
+        - stem
+    steps:
+      - backend: merge_knowledge_inbox_step
+
+  reject_knowledge_inbox:
+    backend: base
+    description: "Reject one _inbox draft (moves it out of the active inbox queue)."
+    parameters:
+      type: object
+      properties:
+        stem:
+          type: string
+      required:
+        - stem
+    steps:
+      - backend: reject_knowledge_inbox_step
+
   daily_list:
     backend: base
     description: "List notes under a single day."

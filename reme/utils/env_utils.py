@@ -32,9 +32,24 @@ def _load_values(values: dict[str, str], *, override: bool) -> dict[str, str]:
     return loaded
 
 
+def load_workspace_env(workspace_dir: str | Path | None) -> dict[str, str]:
+    """Load ``<workspace_dir>/.env`` when present.
+
+    Existing process environment variables are preserved; workspace values only
+    fill missing keys.
+    """
+    if not workspace_dir:
+        return {}
+    env_path = Path(workspace_dir).expanduser().resolve(strict=False) / ".env"
+    if not env_path.is_file():
+        return {}
+    return load_env(env_path, override=False)
+
+
 def load_env(path: str | Path | None = None, *, override: bool = True) -> dict[str, str]:
     """Load .env from given path, or search cwd and up to 5 parents.
 
+    ``workspace_dir/.env`` is loaded separately during ``resolve_app_config``.
     Returns the key/value pairs loaded into ``os.environ``. Repeated calls without
     an explicit path are idempotent and return the values loaded by the first
     successful call.

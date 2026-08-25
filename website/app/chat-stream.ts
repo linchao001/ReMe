@@ -174,7 +174,7 @@ function applyTool(blocks: ChatBlock[], chunk: StreamChunk): ChatBlock[] {
   const nextBlock: ToolBlock = {
     id,
     type: "tool",
-    name: chunk.tool_call_name || current?.name || "ReMe tool",
+    name: chunk.tool_call_name || current?.name || "Qifeng tool",
     callPayloads: result
       ? current?.callPayloads || []
       : [

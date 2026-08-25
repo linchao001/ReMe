@@ -6,7 +6,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { SparkMenuExpandLine, SparkMenuFoldLine } from "@agentscope-ai/icons";
 import {
-  BookOpenText,
   Bot,
   Check,
   CircleAlert,
@@ -23,6 +22,8 @@ import {
   X,
 } from "lucide-react";
 import { getReMeVersion, readWorkspaceFile, streamChat } from "./api";
+import { createId } from "./create-id";
+import { APP_TITLE, BRAND_NAME } from "./branding";
 import { chatStreamError, formatStreamPayloads } from "./chat-stream";
 import FilesNavigator from "./files-workspace/FilesNavigator";
 import MemoryGraphView from "./files-workspace/MemoryGraphView";
@@ -46,20 +47,6 @@ import { hasUnsavedChanges, unsavedTabsClosedBy } from "./tab-close";
 const TabbedEditor = dynamic(() => import("./files-workspace/TabbedEditor"), {
   ssr: false,
 });
-
-function GitHubIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path d="M12 .7a11.5 11.5 0 0 0-3.64 22.4c.58.1.79-.25.79-.56v-2.23c-3.23.7-3.91-1.37-3.91-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.78 1.2 1.78 1.2 1.04 1.77 2.72 1.26 3.38.96.1-.75.4-1.26.74-1.55-2.58-.29-5.29-1.29-5.29-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.47.11-3.05 0 0 .97-.31 3.16 1.18A11 11 0 0 1 12 6.11c.98 0 1.96.13 2.88.39 2.2-1.49 3.16-1.18 3.16-1.18.63 1.58.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.4-2.72 5.38-5.3 5.67.42.36.79 1.07.79 2.16v3.25c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .7Z" />
-    </svg>
-  );
-}
 
 function ThemeMenu() {
   const { t } = useI18n();
@@ -373,12 +360,12 @@ function Chat({ tab }: { tab: Extract<WorkspaceTab, { type: "agent" }> }) {
     if (!query || tab.streaming) return;
     setInput("");
     const user: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: createId(),
       role: "user",
       content: query,
     };
     const assistant: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: createId(),
       role: "assistant",
       content: "",
       blocks: [],
@@ -425,8 +412,8 @@ function Chat({ tab }: { tab: Extract<WorkspaceTab, { type: "agent" }> }) {
               {message.role === "user" ? (
                 t("you")
               ) : (
-                <span aria-label="ReMe" title="ReMe">
-                  R
+                <span aria-label={BRAND_NAME} title={BRAND_NAME}>
+                  Q
                 </span>
               )}
             </div>
@@ -644,7 +631,7 @@ function Workspace() {
           </span>
         </button>
         <strong>
-          ReMe Studio
+          {APP_TITLE}
           {version && (
             <>
               <span className="app-version-divider" aria-hidden="true" />
@@ -660,26 +647,6 @@ function Workspace() {
             : active?.title || t("workspace")}
         </span>
         <div className="topbar-actions">
-          <nav className="resource-links" aria-label={t("documentation")}>
-            <a
-              href="https://docs.agentscope.io/reme/latest/en/overview"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <BookOpenText size={17} />
-              <span>{t("documentation")}</span>
-            </a>
-            <i aria-hidden="true" />
-            <a
-              href="https://github.com/modelscope/ReMe"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <GitHubIcon />
-              <span>{t("github")}</span>
-            </a>
-          </nav>
-          <div className="topbar-divider" aria-hidden="true" />
           <div
             className="language-switch"
             aria-label={t("switchLanguage")}
@@ -722,8 +689,8 @@ function Workspace() {
           <div className="content">
             {!active && (
               <div className="welcome">
-                <div className="agent-logo">R</div>
-                <h1>ReMe Studio</h1>
+                <div className="agent-logo">Q</div>
+                <h1>{APP_TITLE}</h1>
                 <p>{t("welcomeDescription")}</p>
                 <button onClick={openAgent}>
                   <Sparkles size={16} />

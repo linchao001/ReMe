@@ -13,6 +13,7 @@ from .components.service import BaseService
 from .enumeration import ComponentEnum, ComponentType, component_type_name
 from .plugin import resolve_plugin_runtime
 from .schema import ComponentConfig, Response, StreamChunk
+from .knowledge.setup import prepare_knowledge_startup
 from .utils import execute_stream_task, print_logo, get_logger
 
 T = TypeVar("T", bound=BaseComponent)
@@ -24,7 +25,8 @@ class Application(BaseComponent):
 
     def __init__(self, **kwargs) -> None:
         runtime = resolve_plugin_runtime(kwargs)
-        self.context = ApplicationContext(registry=runtime.registry, **runtime.config)
+        config = prepare_knowledge_startup(dict(runtime.config))
+        self.context = ApplicationContext(registry=runtime.registry, **config)
         self._started_components: list[BaseComponent] = []
 
         self._setup_workspace_directories()

@@ -1,0 +1,56 @@
+# Dedicated KB-maintenance ReMe instance (separate workspace/port).
+# For personal memory + shared KB in one process, use config=personal_with_kb instead.
+#
+# Start: reme start config=business_kb
+# One-shot dream: reme start config=business_kb job=knowledge_dream
+extends: default
+
+app_name: Qifeng ZHB
+workspace_dir: ${REME_BUSINESS_KB_WORKSPACE:-.reme_business_kb}
+timezone: Asia/Shanghai
+language: zh
+
+# Shared knowledge-base entities on disk. Empty uses REME_KNOWLEDGE_BASES_DIR
+# or ~/.reme/knowledge_bases.
+knowledge_bases_dir: ${REME_KNOWLEDGE_BASES_DIR:-}
+knowledge_base_id: ${REME_KNOWLEDGE_BASE_ID:-zhb}
+knowledge_dir: knowledge
+knowledge_domain: business
+knowledge_write_mode: strict
+create_knowledge_base: false
+
+# Defaults for knowledge_dream_step (job kwargs may override per call).
+knowledge_scan_days: 2
+knowledge_max_units: 8
+
+jobs:
+  knowledge_dream_cron:
+    backend: cron
+    cron: "0 23 * * *"
+    steps:
+      - backend: knowledge_dream_step
+        scan_days: 2
+        max_units: 8
+
+  knowledge_dream:
+    backend: base
+    description: "Extract recent daily notes into the mounted shared knowledge base."
+    parameters:
+      type: object
+      properties:
+        hint:
+          type: string
+          default: ""
+        scan_days:
+          type: integer
+          default: 2
+        max_units:
+          type: integer
+          default: 8
+    steps:
+      - backend: knowledge_dream_step
+
+# Optional HTTP port override when running beside a personal-memory ReMe instance.
+service:
+  host: ${REME_BUSINESS_KB_HOST:-0.0.0.0}
+  port: ${REME_BUSINESS_KB_PORT:-8182}

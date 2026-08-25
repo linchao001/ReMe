@@ -19,6 +19,7 @@ import {
   rebuildReMeIndex,
   REME_API_ENDPOINT,
 } from "./api";
+import { BRAND_NAME, formatConfigForDisplay } from "./branding";
 import { useI18n } from "./i18n";
 import type { AppConfig, ReMeResponse } from "./types";
 
@@ -101,7 +102,7 @@ export default function SettingsCenter({
       setVersion(nextVersion);
     } catch (nextError) {
       setError(
-        nextError instanceof Error ? nextError.message : "ReMe unavailable",
+        nextError instanceof Error ? nextError.message : `${BRAND_NAME} unavailable`,
       );
     } finally {
       setLoading(false);
@@ -335,7 +336,7 @@ export default function SettingsCenter({
                   </div>
                 </div>
                 <pre className="config-json">
-                  {JSON.stringify(config, null, 2)}
+                  {formatConfigForDisplay(config)}
                 </pre>
               </div>
             )}
@@ -352,7 +353,7 @@ export default function SettingsCenter({
                 </div>
                 <section className="settings-card version-card">
                   <div>
-                    <small>ReMe</small>
+                    <small>{BRAND_NAME}</small>
                     <strong>v{version}</strong>
                   </div>
                   <div>

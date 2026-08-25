@@ -9,6 +9,8 @@ export interface AppConfig {
   workspace_dir: string;
   daily_dir: string;
   digest_dir: string;
+  knowledge_dir: string;
+  knowledge_base_id: string;
   resource_dir: string;
   [key: string]: unknown;
 }

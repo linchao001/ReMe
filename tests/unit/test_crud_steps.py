@@ -776,6 +776,41 @@ def test_read_absolute_path_inside_workspace_accepted():
     _run(run())
 
 
+def test_read_accepts_workspace_mount_paths():
+    """Files reached through an in-workspace junction/symlink mount stay readable."""
+
+    async def run():
+        with tempfile.TemporaryDirectory() as tmp, temp_chdir(tmp):
+            workspace = Path(tmp)
+            external = workspace / "external_kb"
+            external.mkdir()
+            _seed_md(external, "note.md", "mounted\n")
+            mount = workspace / "knowledge"
+            if os.name == "nt":
+                import subprocess
+
+                completed = subprocess.run(
+                    ["cmd", "/c", "mklink", "/J", str(mount), str(external)],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if completed.returncode != 0:
+                    return
+            else:
+                mount.symlink_to(external, target_is_directory=True)
+
+            store = await _make_store()
+            for path in ("knowledge/note.md", str((mount / "note.md").absolute())):
+                resp = await _read(store, path=path)
+                assert resp.success is True, path
+                assert "mounted" in str(resp.answer), path
+            await store.close()
+        print("✓ test_read_accepts_workspace_mount_paths passed")
+
+    _run(run())
+
+
 def test_file_io_ops_reject_outside_workspace_path():
     """CRUD steps reject paths outside the workspace without side effects."""
 

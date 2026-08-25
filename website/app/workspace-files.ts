@@ -22,9 +22,26 @@ export function workspaceFileListing(
 export type WorkspaceDirectoryConfig = {
   daily_dir: string;
   digest_dir: string;
+  knowledge_dir?: string;
+  knowledge_base_id?: string;
 };
 
 export type WorkspaceFileSource = "workspace" | "daily" | "digest";
+
+export function sharedKnowledgeMounted(
+  config: WorkspaceDirectoryConfig,
+): boolean {
+  return Boolean((config.knowledge_base_id || "").trim());
+}
+
+export function knowledgeTabDirectory(
+  config: WorkspaceDirectoryConfig,
+): string {
+  if (sharedKnowledgeMounted(config)) {
+    return cleanDirectory(config.knowledge_dir || "knowledge");
+  }
+  return cleanDirectory(config.digest_dir);
+}
 
 export function parseWorkspaceExtensions(value?: string): Set<string> {
   const extensions = (value || "")
@@ -92,8 +109,15 @@ export function sourceDirectory(
   config: WorkspaceDirectoryConfig,
 ): string {
   if (source === "daily") return cleanDirectory(config.daily_dir);
-  if (source === "digest") return cleanDirectory(config.digest_dir);
+  if (source === "digest") return knowledgeTabDirectory(config);
   return "";
+}
+
+function workspaceExcludedDirectories(
+  config: WorkspaceDirectoryConfig,
+): string[] {
+  if (!sharedKnowledgeMounted(config)) return [];
+  return [cleanDirectory(config.knowledge_dir || "knowledge")];
 }
 
 export function filterPathsBySource(
@@ -101,6 +125,17 @@ export function filterPathsBySource(
   source: WorkspaceFileSource,
   config: WorkspaceDirectoryConfig,
 ): string[] {
+  if (source === "workspace") {
+    const excluded = workspaceExcludedDirectories(config);
+    if (!excluded.length) return paths;
+    return paths.filter(
+      (path) =>
+        !excluded.some(
+          (directory) =>
+            path === directory || path.startsWith(`${directory}/`),
+        ),
+    );
+  }
   const directory = sourceDirectory(source, config);
   if (!directory) return paths;
   return paths.filter(
