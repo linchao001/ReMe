@@ -15,7 +15,7 @@ language: zh
 
 # Shared knowledge-base entity mounted into this workspace (cross-workspace, jointly maintained).
 knowledge_bases_dir: ${REME_KNOWLEDGE_BASES_DIR:-}
-knowledge_base_id: ${REME_KNOWLEDGE_BASE_ID:-zhb}
+knowledge_base_id: ${REME_KNOWLEDGE_BASE_ID:-zhb_kb}
 knowledge_dir: knowledge
 knowledge_domain: business
 knowledge_write_mode: strict

@@ -13,7 +13,7 @@ language: zh
 # Shared knowledge-base entities on disk. Empty uses REME_KNOWLEDGE_BASES_DIR
 # or ~/.reme/knowledge_bases.
 knowledge_bases_dir: ${REME_KNOWLEDGE_BASES_DIR:-}
-knowledge_base_id: ${REME_KNOWLEDGE_BASE_ID:-zhb}
+knowledge_base_id: ${REME_KNOWLEDGE_BASE_ID:-zhb_kb}
 knowledge_dir: knowledge
 knowledge_domain: business
 knowledge_write_mode: strict

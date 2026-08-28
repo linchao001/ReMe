@@ -97,17 +97,28 @@ def test_list_and_read_zhb_kb_if_present():
         Path.home() / ".reme" / "knowledge_bases",
         Path.home() / ".qwenpaw" / "knowledge_bases",
     )
-    bases_dir = next((path for path in candidates if (path / "zhb").is_dir()), None)
-    if bases_dir is None:
-        pytest.skip("local zhb knowledge base not present")
+    kb_names = ("zhb_kb", "zhb")
+    bases_dir = None
+    kb_id = None
+    for path in candidates:
+        for name in kb_names:
+            if (path / name).is_dir():
+                bases_dir = path
+                kb_id = name
+                break
+        if bases_dir is not None:
+            break
+    if bases_dir is None or kb_id is None:
+        pytest.skip("local zhb_kb/zhb knowledge base not present")
 
     items = list_knowledge_bases(bases_dir)
     ids = {item.id for item in items}
-    assert "zhb" in ids
+    # Directory name is the mount key; KB.md id may still be a legacy value.
+    assert kb_id in {p.name for p in bases_dir.iterdir() if p.is_dir()}
+    assert ids  # at least one readable KB.md
 
-    meta = read_knowledge_base_meta("zhb", knowledge_bases_dir=bases_dir)
+    meta = read_knowledge_base_meta(kb_id, knowledge_bases_dir=bases_dir)
     assert meta is not None
-    assert meta.id == "zhb"
     assert meta.name
 
     prefixes = knowledge_published_path_prefixes("knowledge")
@@ -124,6 +135,36 @@ def test_ensure_knowledge_mount_refuses_missing_kb(tmp_path):
             knowledge_bases_dir=tmp_path / "knowledge_bases",
             create_if_missing=False,
         )
+
+
+def test_ensure_knowledge_mount_repairs_dangling_junction(tmp_path, monkeypatch):
+    from reme.knowledge import mount as mount_mod
+
+    bases_dir = tmp_path / "knowledge_bases"
+    new_kb = bases_dir / "current"
+    (new_kb / "business" / "wiki").mkdir(parents=True)
+    (new_kb / "KB.md").write_text(
+        "---\nid: current\nname: Current\ndomain: business\nversion: 1\n---\n",
+        encoding="utf-8",
+    )
+
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    mount = workspace / "knowledge"
+    mount.mkdir()
+
+    def fake_detect(workspace_dir, *, mount_name="knowledge"):
+        candidate = Path(workspace_dir).resolve() / (mount_name or "knowledge")
+        return candidate if candidate == mount.resolve() else None
+
+    monkeypatch.setattr(mount_mod, "detect_dangling_mount", fake_detect)
+
+    repaired = ensure_knowledge_mount(
+        workspace,
+        "current",
+        knowledge_bases_dir=bases_dir,
+    )
+    assert repaired.resolve() == new_kb.resolve()
 
 
 @pytest.mark.asyncio

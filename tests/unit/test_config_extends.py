@@ -5,7 +5,7 @@ from reme.config.config_parser import _load_config
 
 def test_business_kb_config_extends_default():
     cfg = _load_config("business_kb")
-    assert cfg.get("knowledge_base_id") == "zhb"
+    assert cfg.get("knowledge_base_id") == "zhb_kb"
     jobs = cfg.get("jobs", {})
     assert "search" in jobs
     assert "knowledge_search" in jobs
@@ -18,7 +18,7 @@ def test_business_kb_config_extends_default():
 def test_personal_with_kb_config_extends_default():
     cfg = _load_config("personal_with_kb")
     assert cfg.get("workspace_dir") == ".reme"
-    assert cfg.get("knowledge_base_id") == "zhb"
+    assert cfg.get("knowledge_base_id") == "zhb_kb"
     jobs = cfg.get("jobs", {})
     assert "dream_cron" in jobs
     assert "knowledge_dream" in jobs

@@ -140,7 +140,7 @@ def test_resolve_app_config_uses_reme_config_env_when_unspecified(monkeypatch):
     monkeypatch.setenv("REME_CONFIG", "personal_with_kb")
     cfg = resolve_app_config(log_config=False)
 
-    assert cfg.get("knowledge_base_id") == "zhb"
+    assert cfg.get("knowledge_base_id") == "zhb_kb"
     assert cfg["jobs"]["knowledge_dream_cron"]["backend"] == "cron"
 
 

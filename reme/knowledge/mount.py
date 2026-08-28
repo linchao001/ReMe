@@ -101,11 +101,20 @@ def ensure_knowledge_mount(
 
     dangling = detect_dangling_mount(workspace, mount_name=mount_name or "knowledge")
     if dangling is not None:
-        raise KnowledgeMountError(
-            f"Knowledge mount {mount} points at a missing shared knowledge "
-            f"base (kb_id={kb_id}). Restore the knowledge-base directory or "
-            "choose a different knowledge_base_id.",
+        logger.warning(
+            "Removing dangling knowledge mount %s; will remount kb_id=%s",
+            mount,
+            kb_id,
         )
+        if _is_junction_or_symlink(mount) or mount.is_symlink():
+            if mount.is_dir() and not mount.is_symlink():
+                mount.rmdir()
+            else:
+                mount.unlink()
+        elif mount.is_dir():
+            mount.rmdir()
+        else:
+            mount.unlink()
 
     root = kb_root(kb_id, knowledge_bases_dir=knowledge_bases_dir)
     if not root.is_dir():

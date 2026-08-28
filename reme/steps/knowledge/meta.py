@@ -26,7 +26,7 @@ class KnowledgeBaseMetaStep(BaseStep):
             self.context.response.success = False
             self.context.response.answer = (
                 "Error: knowledge_base_id is not configured. "
-                "Set knowledge_base_id=zhb when starting ReMe."
+                "Set knowledge_base_id=zhb_kb when starting ReMe."
             )
             return self.context.response
 
