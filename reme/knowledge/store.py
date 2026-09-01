@@ -16,7 +16,12 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-BUSINESS_BUCKETS = ("business/wiki", "business/procedure", "business/personal")
+BUSINESS_BUCKETS = (
+    "business/wiki",
+    "business/procedure",
+    "business/personal",
+    "business/dbInfo",
+)
 TEST_BUCKETS = (
     "test/test_design",
     "test/test_cases",
@@ -28,6 +33,7 @@ KB_BUCKETS = (*BUSINESS_BUCKETS, *TEST_BUCKETS, INBOX_BUCKET)
 PUBLISHED_BUCKETS = tuple(b for b in KB_BUCKETS if b != INBOX_BUCKET)
 LEGACY_FLAT_BUCKETS = ("personal", "procedure", "wiki")
 PUBLISHED_DOMAIN_PREFIXES = ("business", "test")
+_PUBLISHED_BUCKETS_BY_LOWER = {b.lower(): b for b in PUBLISHED_BUCKETS}
 
 _KB_ID_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$")
 _DEFAULT_KB_ROOT_ENV = "REME_KNOWLEDGE_BASES_DIR"
@@ -74,6 +80,25 @@ def knowledge_watch_dirs(workspace_dir: str | Path, knowledge_dir: str) -> list[
     return [str(_join_bucket(root, b)) for b in buckets]
 
 
+def canonicalize_published_bucket(bucket: str) -> str | None:
+    """Map a bucket string to its canonical ``PUBLISHED_BUCKETS`` form.
+
+    Matching is case-insensitive so callers that lower-case arguments still
+    resolve mixed-case on-disk buckets such as ``business/dbInfo``. Legacy
+    flat names (``wiki`` / ``procedure`` / ``personal``) map to
+    ``business/{flat}``.
+    """
+    raw = (bucket or "").strip().replace("\\", "/").strip("/")
+    if not raw:
+        return None
+    lowered = raw.lower()
+    if lowered in _PUBLISHED_BUCKETS_BY_LOWER:
+        return _PUBLISHED_BUCKETS_BY_LOWER[lowered]
+    if lowered in LEGACY_FLAT_BUCKETS:
+        return f"business/{lowered}"
+    return None
+
+
 def knowledge_published_path_prefixes(knowledge_dir: str) -> list[str]:
     """Workspace-relative prefixes covering published KB nodes."""
     return knowledge_scope_path_prefixes(knowledge_dir, bucket="")
@@ -84,24 +109,24 @@ def knowledge_scope_path_prefixes(
     bucket: str = "",
 ) -> list[str]:
     kd = (knowledge_dir or "knowledge").replace("\\", "/").strip("/")
-    raw = (bucket or "").strip().lower().replace("\\", "/").strip("/")
-    if raw in ("all", "*"):
-        raw = ""
-    if not raw:
+    raw = (bucket or "").strip().replace("\\", "/").strip("/")
+    lowered = raw.lower()
+    if lowered in ("all", "*", ""):
         prefixes = [f"{kd}/{domain}/" for domain in PUBLISHED_DOMAIN_PREFIXES]
         prefixes.extend(f"{kd}/{flat}/" for flat in LEGACY_FLAT_BUCKETS)
         return prefixes
-    if raw in PUBLISHED_DOMAIN_PREFIXES:
-        prefixes = [f"{kd}/{raw}/"]
-        if raw == "business":
+    if lowered in PUBLISHED_DOMAIN_PREFIXES:
+        prefixes = [f"{kd}/{lowered}/"]
+        if lowered == "business":
             prefixes.extend(f"{kd}/{flat}/" for flat in LEGACY_FLAT_BUCKETS)
         return prefixes
-    if raw in LEGACY_FLAT_BUCKETS:
-        return [f"{kd}/business/{raw}/", f"{kd}/{raw}/"]
-    if raw in PUBLISHED_BUCKETS:
-        prefixes = [f"{kd}/{raw}/"]
-        if raw.startswith("business/"):
-            flat = raw.split("/", 1)[1]
+    if lowered in LEGACY_FLAT_BUCKETS:
+        return [f"{kd}/business/{lowered}/", f"{kd}/{lowered}/"]
+    canon = canonicalize_published_bucket(raw)
+    if canon is not None:
+        prefixes = [f"{kd}/{canon}/"]
+        if canon.startswith("business/"):
+            flat = canon.split("/", 1)[1]
             if flat in LEGACY_FLAT_BUCKETS:
                 prefixes.append(f"{kd}/{flat}/")
         return prefixes

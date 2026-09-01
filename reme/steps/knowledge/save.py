@@ -13,7 +13,7 @@ from ...knowledge.dream import (
     structural_merge_body,
 )
 from ...knowledge.lock import KnowledgeLockTimeout
-from ...knowledge.store import PUBLISHED_BUCKETS, kb_root
+from ...knowledge.store import canonicalize_published_bucket, kb_root
 from ..base_step import BaseStep
 from ._runtime import knowledge_context, settings_from_config
 
@@ -39,16 +39,14 @@ class SaveToKnowledgeStep(BaseStep):
 
         title = str(self.context.get("title") or "").strip()
         content = str(self.context.get("content") or "").strip()
-        bucket = str(self.context.get("bucket") or "wiki").strip().lower()
+        bucket_raw = str(self.context.get("bucket") or "wiki").strip()
         if not title or not content:
             self.context.response.success = False
             self.context.response.answer = "Error: title and content are required"
             return self.context.response
 
-        legacy_flat = {"personal", "procedure", "wiki"}
-        if bucket in legacy_flat:
-            bucket = f"business/{bucket}"
-        if bucket not in PUBLISHED_BUCKETS:
+        bucket = canonicalize_published_bucket(bucket_raw)
+        if bucket is None:
             bucket = (
                 "test/test_cases"
                 if settings.domain.startswith("test")

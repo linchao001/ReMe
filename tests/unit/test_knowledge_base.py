@@ -7,7 +7,12 @@ import pytest
 from reme.knowledge.mount import ensure_knowledge_mount
 from reme.knowledge.setup import augment_jobs_for_knowledge, prepare_knowledge_startup
 from reme.knowledge.store import (
+    BUSINESS_BUCKETS,
+    PUBLISHED_BUCKETS,
+    canonicalize_published_bucket,
     default_knowledge_bases_dir,
+    ensure_kb,
+    knowledge_bucket_choices,
     knowledge_published_path_prefixes,
     knowledge_scope_path_prefixes,
     knowledge_watch_dirs,
@@ -38,6 +43,22 @@ def test_knowledge_scope_prefixes_cover_domains():
     assert cases == ["knowledge/test/test_cases/"]
 
 
+def test_business_dbinfo_is_published_bucket():
+    assert "business/dbInfo" in BUSINESS_BUCKETS
+    assert "business/dbInfo" in PUBLISHED_BUCKETS
+    assert "business/dbInfo" in knowledge_bucket_choices()
+    assert canonicalize_published_bucket("business/dbInfo") == "business/dbInfo"
+    assert canonicalize_published_bucket("business/dbinfo") == "business/dbInfo"
+    assert canonicalize_published_bucket("BUSINESS/DBINFO") == "business/dbInfo"
+
+    prefixes = knowledge_scope_path_prefixes("knowledge", bucket="business/dbInfo")
+    assert prefixes == ["knowledge/business/dbInfo/"]
+    # Callers may lower-case bucket args; keep on-disk camelCase in prefixes.
+    assert knowledge_scope_path_prefixes("knowledge", bucket="business/dbinfo") == [
+        "knowledge/business/dbInfo/",
+    ]
+
+
 def test_knowledge_watch_dirs_use_published_buckets_only(tmp_path):
     workspace = tmp_path / "ws"
     workspace.mkdir()
@@ -49,8 +70,15 @@ def test_knowledge_watch_dirs_use_published_buckets_only(tmp_path):
     watched = knowledge_watch_dirs(workspace, "knowledge")
     watched_names = {Path(p).name for p in watched}
     assert "wiki" in watched_names
+    assert "dbInfo" in watched_names
     assert "_inbox" not in watched_names
     assert all(Path(p).is_absolute() for p in watched)
+
+
+def test_ensure_kb_creates_dbinfo_bucket(tmp_path):
+    meta = ensure_kb("demo", knowledge_bases_dir=tmp_path / "knowledge_bases")
+    assert meta.id == "demo"
+    assert (tmp_path / "knowledge_bases" / "demo" / "business" / "dbInfo").is_dir()
 
 
 def test_prepare_knowledge_startup_mounts_existing_kb(tmp_path, monkeypatch):
@@ -79,6 +107,7 @@ def test_prepare_knowledge_startup_mounts_existing_kb(tmp_path, monkeypatch):
     watch_dirs = kwargs["jobs"]["index_update_loop"]["watch_dirs"]
     normalized = [str(entry).replace("\\", "/") for entry in watch_dirs]
     assert any("business/wiki" in entry for entry in normalized)
+    assert any("business/dbInfo" in entry for entry in normalized)
 
 
 def test_augment_jobs_for_knowledge_appends_once(tmp_path):
@@ -90,6 +119,7 @@ def test_augment_jobs_for_knowledge_appends_once(tmp_path):
     assert jobs["reindex"]["watch_dirs"].count("daily_dir") == 1
     normalized = [str(entry).replace("\\", "/") for entry in jobs["reindex"]["watch_dirs"]]
     assert any("business/wiki" in entry for entry in normalized)
+    assert any("business/dbInfo" in entry for entry in normalized)
 
 
 def test_list_and_read_zhb_kb_if_present():
@@ -215,3 +245,54 @@ async def test_save_to_knowledge_writes_published_node(tmp_path):
     assert rel_path.is_file()
     text = rel_path.read_text(encoding="utf-8")
     assert "测试知识节点" in text
+
+
+@pytest.mark.asyncio
+async def test_save_to_knowledge_writes_dbinfo_node(tmp_path):
+    from reme.application import Application
+
+    kb_root = tmp_path / "knowledge_bases" / "demo"
+    (kb_root / "business" / "dbInfo").mkdir(parents=True)
+    (kb_root / "KB.md").write_text(
+        "---\nid: demo\nname: Demo\ndomain: business\nversion: 1\n---\n",
+        encoding="utf-8",
+    )
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+
+    cfg = {
+        "enable_logo": False,
+        "log_to_file": False,
+        "log_to_console": False,
+        "workspace_dir": str(workspace),
+        "knowledge_bases_dir": str(tmp_path / "knowledge_bases"),
+        "knowledge_base_id": "demo",
+        "knowledge_dir": "knowledge",
+        "knowledge_write_mode": "open",
+        "service": {"backend": "http", "web_enabled": False, "port": 8199},
+        "jobs": {
+            "save_to_knowledge": {
+                "backend": "base",
+                "steps": [{"backend": "save_to_knowledge_step"}],
+            },
+        },
+    }
+
+    app = Application(**cfg)
+    await app.start()
+    resp = await app.run_job(
+        "save_to_knowledge",
+        title="表-demo_table",
+        content="演示表结构说明。",
+        bucket="business/dbinfo",  # lower-case input must canonicalize
+    )
+    await app.close()
+
+    assert resp.success
+    written = (resp.metadata or {}).get("written") or []
+    assert written
+    rel_path = kb_root / "business" / "dbInfo" / "表-demo_table.md"
+    assert rel_path.is_file()
+    text = rel_path.read_text(encoding="utf-8")
+    assert "演示表结构说明" in text
+    assert "bucket: business/dbInfo" in text

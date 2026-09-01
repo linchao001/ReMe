@@ -27,6 +27,7 @@ from .store import (
     INBOX_BUCKET,
     LEGACY_FLAT_BUCKETS,
     PUBLISHED_BUCKETS,
+    canonicalize_published_bucket,
     kb_root,
     validate_kb_id,
 )
@@ -345,13 +346,12 @@ def _normalize_bucket(bucket: str, default_bucket: str) -> str:
     Legacy flat buckets (``personal``/``procedure``/``wiki``) from
     pre-domain callers are mapped to ``business/{flat}`` so existing
     code and on-disk KBs keep working. Unknown buckets fall back to
-    ``default_bucket`` (domain-appropriate).
+    ``default_bucket`` (domain-appropriate). Matching is case-insensitive
+    so mixed-case buckets such as ``business/dbInfo`` survive lower-casing.
     """
-    bucket = (bucket or "").strip().lower()
-    if bucket in PUBLISHED_BUCKETS:
-        return bucket
-    if bucket in LEGACY_FLAT_BUCKETS:
-        return f"business/{bucket}"
+    canon = canonicalize_published_bucket(bucket)
+    if canon is not None:
+        return canon
     return default_bucket
 
 
@@ -1511,11 +1511,10 @@ def _normalize_unit_bucket(unit: KnowledgeUnit) -> str:
     bucket = (unit.bucket or "").strip()
     if bucket == INBOX_BUCKET:
         bucket = ""
-    if bucket in PUBLISHED_BUCKETS:
-        return bucket
-    if bucket in LEGACY_FLAT_BUCKETS:
-        return f"business/{bucket}"
-    if bucket.startswith("test/"):
+    canon = canonicalize_published_bucket(bucket)
+    if canon is not None:
+        return canon
+    if bucket.lower().startswith("test/"):
         return "test/test_cases"
     return "business/wiki"
 

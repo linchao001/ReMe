@@ -10,7 +10,7 @@ BUSINESS_EXTRACT_PROMPT_ZH = """\
 1. 只提取稳定、可复用的业务口径、流程、实体定义、决策与约束。
 2. 忽略闲聊、临时任务状态、敏感隐私。
 3. 覆盖笔记中出现的全部稳定可复用口径，不要只抽最显眼的几条；同一实体只输出一个单元。
-4. 每个单元给出：name（短标题）、bucket（business/wiki | business/procedure | business/personal）、
+4. 每个单元给出：name（短标题）、bucket（business/wiki | business/procedure | business/personal | business/dbInfo）、
    summary（1-3句，笔记里出现的定义、边界、例外、约束尽量写进摘要）、confidence（0-1）、signals（依据片段摘要列表，尽量用笔记原句）、
    action_hint（可选：CREATE / CORROBORATE / REFINE / CORRECT；MERGE 视为 REFINE 别名）、
    merge_target（可选：当 action_hint 为 CORROBORATE/REFINE/CORRECT 时，给出要并入/修正的已有 KB 节点标题）、
@@ -39,7 +39,7 @@ Rules:
    and constraints.
 2. Skip chit-chat, transient task status, and sensitive private data.
 3. Cover every durable reusable claim in the notes; one unit per entity.
-4. For each unit provide: name, bucket (business/wiki | business/procedure | business/personal),
+4. For each unit provide: name, bucket (business/wiki | business/procedure | business/personal | business/dbInfo),
    summary (1-3 sentences; include definitions, boundaries, exceptions,
    and constraints when the notes have them), confidence (0-1),
    signals (short evidence snippets, prefer verbatim phrases from the notes),
@@ -180,7 +180,7 @@ KB_MEMORY_GUIDANCE_ZH_EXTRA = """\
 - 业务智能体默认 `business`（不含测试制品）；测试智能体默认全部 published
 - `all`：全部 published 知识
 - `business` / `test`：按域
-- `business/wiki`、`test/test_cases` 等：按桶（含旧版扁平 `wiki` / `procedure` / `personal`）
+- `business/wiki`、`business/dbInfo`、`test/test_cases` 等：按桶（含旧版扁平 `wiki` / `procedure` / `personal`）
 
 ### 🎯 召回粒度 recall
 `memory_search(query, recall=...)`：
@@ -230,7 +230,7 @@ treated as hits. `_inbox` / `_audit` are not indexed for search.
   default to all published knowledge
 - `all`: every published domain
 - `business` / `test`: by domain
-- `business/wiki`, `test/test_cases`, …: by bucket (legacy flat
+- `business/wiki`, `business/dbInfo`, `test/test_cases`, …: by bucket (legacy flat
   `wiki` / `procedure` / `personal` are accepted)
 
 ### 🎯 Recall granularity
