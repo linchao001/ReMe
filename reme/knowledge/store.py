@@ -21,6 +21,7 @@ BUSINESS_BUCKETS = (
     "business/procedure",
     "business/personal",
     "business/dbInfo",
+    "business/openapi",
 )
 TEST_BUCKETS = (
     "test/test_design",

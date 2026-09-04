@@ -436,7 +436,7 @@ jobs:
           default: 0.0
         bucket:
           type: string
-          description: "Scope bucket: all, business, test, business/wiki, business/dbInfo, test/test_cases, ..."
+          description: "Scope bucket: all, business, test, business/wiki, business/dbInfo, business/openapi, test/test_cases, ..."
           default: "all"
       required:
         - query
