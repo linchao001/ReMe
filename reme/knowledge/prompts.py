@@ -97,6 +97,7 @@ TESTCASE_EXTRACT_PROMPT_ZH = """\
    - CORRECT：修正错误步骤/预期。
 6. test/test_design 放测试场景/等价类划分/边界设计；test/test_cases 放具体用例；
    test/test_data 放可复用测试数据集；test/defects 放沉淀的缺陷模式（不是一次性 bug）。
+   不要从笔记 CREATE test/ui_pages 或 test/ui_locators（由 UI 定位工具维护）。
 7. 最多返回 {max_units} 个单元；达到上限时优先更稳定、可执行的用例。
 8. 填写 merge_target 时必须使用下列已有节点的标题；同一用例不要另起「X-补充」之类新名去 CREATE。
 9. 严格输出 JSON 数组，不要 markdown 围栏。
@@ -143,6 +144,7 @@ Rules:
 6. test/test_design holds scenarios/equivalence-class/boundary designs;
    test/test_cases holds concrete cases; test/test_data holds reusable data
    sets; test/defects holds distilled defect patterns (not one-off bugs).
+   Do not CREATE test/ui_pages or test/ui_locators from notes (tool-maintained).
 7. Return at most {max_units} units; if you hit the cap, keep the most
    durable, executable cases.
 8. When filling merge_target, use a title from the existing-node list below;
@@ -160,7 +162,9 @@ KB_MEMORY_GUIDANCE_ZH_EXTRA = """\
 - **知识库**（`{knowledge_dir}/`）— 可跨智能体共享的正式知识（published），按域分桶：
   - `business/`：业务知识（产品/研发/测试共同维护）—— `wiki` / `procedure` / `personal` / `dbInfo` / `openapi`
   - `test/`：测试制品（QA 维护）—— `test_design`（场景/等价类/边界设计）、
-    `test_cases`（用例本体）、`test_data`（可复用数据集）、`defects`（缺陷模式）
+    `test_cases`（用例本体）、`test_data`（可复用数据集）、`defects`（缺陷模式）、
+    `ui_pages`（页面/控件业务可读定位图，无 selector）、
+    `ui_locators`（可执行定位，供 UI 自动化 resolve）
   - `_inbox` 为待审内容，默认不召回。
 
 ### 🔗 追溯
@@ -180,7 +184,7 @@ KB_MEMORY_GUIDANCE_ZH_EXTRA = """\
 - 业务智能体默认 `business`（不含测试制品）；测试智能体默认全部 published
 - `all`：全部 published 知识
 - `business` / `test`：按域
-- `business/wiki`、`business/dbInfo`、`business/openapi`、`test/test_cases` 等：按桶（含旧版扁平 `wiki` / `procedure` / `personal`）
+- `business/wiki`、`business/dbInfo`、`business/openapi`、`test/test_cases`、`test/ui_pages`、`test/ui_locators` 等：按桶（含旧版扁平 `wiki` / `procedure` / `personal`）
 
 ### 🎯 召回粒度 recall
 `memory_search(query, recall=...)`：
@@ -206,7 +210,9 @@ KB_MEMORY_GUIDANCE_EN_EXTRA = """\
     `wiki` / `procedure` / `personal` / `dbInfo` / `openapi`
   - `test/`: test artifacts (QA-owned) — `test_design` (scenarios /
     equivalence classes / boundary designs), `test_cases` (concrete
-    cases), `test_data` (reusable data sets), `defects` (defect patterns)
+    cases), `test_data` (reusable data sets), `defects` (defect patterns),
+    `ui_pages` (business-readable page/control maps, no selectors),
+    `ui_locators` (executable locators for UI automation resolve)
   - `_inbox` is review-only and not recalled by default.
 
 ### 🔗 Traceability
@@ -230,7 +236,8 @@ treated as hits. `_inbox` / `_audit` are not indexed for search.
   default to all published knowledge
 - `all`: every published domain
 - `business` / `test`: by domain
-- `business/wiki`, `business/dbInfo`, `business/openapi`, `test/test_cases`, …: by bucket (legacy flat
+- `business/wiki`, `business/dbInfo`, `business/openapi`, `test/test_cases`,
+  `test/ui_pages`, `test/ui_locators`, …: by bucket (legacy flat
   `wiki` / `procedure` / `personal` are accepted)
 
 ### 🎯 Recall granularity

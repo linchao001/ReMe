@@ -28,6 +28,8 @@ TEST_BUCKETS = (
     "test/test_cases",
     "test/test_data",
     "test/defects",
+    "test/ui_pages",
+    "test/ui_locators",
 )
 INBOX_BUCKET = "_inbox"
 KB_BUCKETS = (*BUSINESS_BUCKETS, *TEST_BUCKETS, INBOX_BUCKET)

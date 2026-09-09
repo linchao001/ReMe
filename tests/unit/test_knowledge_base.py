@@ -73,6 +73,43 @@ def test_business_openapi_is_published_bucket():
     ]
 
 
+def test_ui_locator_buckets_are_published():
+    from reme.knowledge.store import TEST_BUCKETS
+
+    assert "test/ui_pages" in TEST_BUCKETS
+    assert "test/ui_locators" in TEST_BUCKETS
+    assert "test/ui_pages" in PUBLISHED_BUCKETS
+    assert "test/ui_locators" in PUBLISHED_BUCKETS
+    assert "test/ui_pages" in knowledge_bucket_choices()
+    assert "test/ui_locators" in knowledge_bucket_choices()
+    assert canonicalize_published_bucket("test/ui_pages") == "test/ui_pages"
+    assert canonicalize_published_bucket("TEST/UI_LOCATORS") == "test/ui_locators"
+
+    assert knowledge_scope_path_prefixes("knowledge", bucket="test/ui_pages") == [
+        "knowledge/test/ui_pages/",
+    ]
+    assert knowledge_scope_path_prefixes("knowledge", bucket="test/ui_locators") == [
+        "knowledge/test/ui_locators/",
+    ]
+
+
+def test_ensure_kb_creates_ui_locator_buckets(tmp_path):
+    meta = ensure_kb("demo", knowledge_bases_dir=tmp_path / "knowledge_bases")
+    assert meta.id == "demo"
+    root = tmp_path / "knowledge_bases" / "demo"
+    assert (root / "test" / "ui_pages").is_dir()
+    assert (root / "test" / "ui_locators").is_dir()
+
+
+def test_knowledge_watch_dirs_include_ui_locator_buckets(tmp_path):
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    watched = knowledge_watch_dirs(workspace, "knowledge")
+    watched_norm = {Path(p).as_posix().replace("\\", "/") for p in watched}
+    assert any(p.endswith("/test/ui_pages") for p in watched_norm)
+    assert any(p.endswith("/test/ui_locators") for p in watched_norm)
+
+
 def test_knowledge_watch_dirs_use_published_buckets_only(tmp_path):
     workspace = tmp_path / "ws"
     workspace.mkdir()
