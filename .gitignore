@@ -57,6 +57,7 @@ vault/
 
 # Documentation build outputs
 docs/_build/
+docs/tmp/
 site/
 
 evaluation/
