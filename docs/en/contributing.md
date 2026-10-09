@@ -39,8 +39,8 @@ The project requires Python 3.11 or later. A virtual environment is recommended:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e packages/reme_ai_studio -e ".[dev,full]"
-cd website
+pip install -e reme_studio -e ".[dev,full]"
+cd reme_studio
 npm ci
 npm run build:static
 cd ..
@@ -209,12 +209,28 @@ Documentation lives under:
 docs/
 ```
 
+User guides should have matching `docs/zh/` and `docs/en/` versions and appear in the corresponding navigation in
+`docs/.vitepress/config.mts`. The ReMe Studio, TypeScript, plugin, and benchmark READMEs remain canonical in their own
+directories; `github-pages/scripts/generate-content.mjs` mirrors them during builds. Never edit `.generated/` or `dist/`.
+
+The Job API reference is generated from `reme/config/default.yaml`. Update that YAML and its tests when a default Job
+contract changes rather than editing generated pages.
+
 Documentation should:
 
 - Use clear titles that directly identify a capability or flow.
 - Provide commands that can be copied and run.
 - Use real repository paths such as `reme/config/default.yaml`, `reme/steps/`, and `tests/unit/`.
 - Describe default behavior according to the current code, `pyproject.toml`, and default configuration.
+
+Validate the documentation site with:
+
+```bash
+cd github-pages
+npm ci
+npm test
+npm run build
+```
 
 ---
 

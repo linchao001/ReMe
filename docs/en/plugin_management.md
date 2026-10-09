@@ -17,7 +17,7 @@ A typical plugin workflow has three stages:
 
 1. Install ReMe and the plugin distribution.
 2. Configure the plugin's runtime environment as described in the
-   [ReMe environment-variable guide](../../README.md#environment-variables).
+   [ReMe model-configuration guide](../../README.md#optional-model-configuration).
 3. Start an Application with the plugin explicitly enabled, for example
    `reme start plugins='["auto-fin"]'`.
 
@@ -32,7 +32,7 @@ The table shows the plugin entry-point name, Python distribution, version, and p
 ```text
 PLUGIN    DISTRIBUTION   VERSION  FORMAT
 --------  -------------  -------  --------
-auto-fin  reme-auto-fin  0.1.0    manifest
+auto-fin  reme-auto-fin  X.Y.Z    manifest
 ```
 
 `manifest` plugins use the current package-level `plugin.yaml` contract. `legacy` plugins use the compatible Python
@@ -64,7 +64,7 @@ reme plugins list --json
 To compare installed plugins with one application config:
 
 ```bash
-reme plugins list --config daily_cookbook
+reme plugins list --config default
 ```
 
 The optional `ENABLED` column reflects only the `plugins` list resolved from that config. A command-line override used
@@ -72,17 +72,17 @@ by another running process is not a global enable state.
 
 ## Install a plugin package
 
-Install a published distribution:
+Install a published distribution by its package name:
 
 ```bash
-reme plugins install reme-auto-fin
+reme plugins install your-plugin-package
 ```
 
 Install or upgrade a pinned version:
 
 ```bash
-reme plugins install 'reme-auto-fin==0.1.0'
-reme plugins install reme-auto-fin --upgrade
+reme plugins install 'your-plugin-package==X.Y.Z'
+reme plugins install your-plugin-package --upgrade
 ```
 
 Install a local plugin project:
@@ -173,11 +173,19 @@ curl -s http://127.0.0.1:2333/auto_fin \
 
 When the application uses an MCP service, service-enabled plugin Jobs appear as MCP tools instead.
 
-To add the plugin to another application config, select it explicitly:
+Custom application configs must provide the plugin's runtime dependencies, including an `agent_wrapper.default`, a
+`file_store.default` with an enabled tag index, and the `search`, `read`, `list_tags`, `frontmatter_read`, and
+`frontmatter_update` Jobs used by Auto Fin and automatic tagging.
 
-```bash
-reme start config=daily_cookbook plugins='["auto-fin"]'
-```
+## Benchmark application presets
+
+The [LME](../../plugins/lme/README.md) and [BEAM](../../plugins/beam/README.md) plugins
+register their backends and plugin-owned Jobs in `plugin.yaml`. ReMe's built-in `benchmark`
+preset provides the shared core Jobs and components without inheriting `default`, so default
+background and cron jobs are not included. Install the selected benchmark plugin, then use
+`config=benchmark` together with `plugins=["lme"]` or `plugins=["beam"]`. The repository's
+benchmark runners enable the corresponding installed plugin automatically; editable installation
+keeps local plugin changes visible. Dataset runners remain under `benchmark/`.
 
 ## Uninstall a plugin
 

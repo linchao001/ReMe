@@ -65,6 +65,31 @@ def test_strip_injected_parameters_hides_keys_from_schema():
     assert "date" in job.parameters["properties"]
 
 
+def test_search_injection_exposes_only_query():
+    parameters = {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string"},
+            "limit": {"type": "integer"},
+            "min_score": {"type": "number"},
+            "start_date": {"type": "string"},
+            "end_date": {"type": "string"},
+        },
+        "required": ["query"],
+    }
+    injected = {
+        "limit": 20,
+        "min_score": 0.0,
+        "start_date": None,
+        "end_date": "2026-07-20",
+    }
+
+    stripped = BaseAgentWrapper._strip_injected_parameters(parameters, injected)
+
+    assert stripped["properties"] == {"query": {"type": "string"}}
+    assert stripped["required"] == ["query"]
+
+
 # -- AgentScope wrapper -----------------------------------------------------------
 
 
@@ -139,7 +164,7 @@ class _RecordingWrapper(BaseAgentWrapper):
         super().__init__(**kwargs)
         self.calls: list[dict] = []
 
-    async def reply(self, inputs, **kwargs) -> dict:
+    async def reply(self, _inputs, **kwargs) -> dict:
         self.calls.append(kwargs)
         return {"session_id": "s-1", "last_message": {}, "result": "ok"}
 
@@ -205,7 +230,7 @@ async def test_auto_memory_update_scopes_tools_to_exact_note_path(tmp_path, monk
 
 
 def test_auto_memory_keeps_original_tool_names():
-    """BEAM/LME configs define only the original jobs; no *_daily variants exist."""
+    """Core auto-memory uses the original file tool names."""
     step = AutoMemoryStep(name="auto_memory")
     assert step.create_tools == ["daily_write"]
     assert step.update_tools == ["read", "edit", "frontmatter_update", "write"]
@@ -215,26 +240,33 @@ def test_auto_memory_create_prompts_match_upstream_date_arguments():
     """Auto-memory prompts keep the upstream model-supplied date argument."""
     from pathlib import Path
 
-    prompt_files = (
-        Path("reme/steps/evolve/auto_memory.yaml"),
-        Path("reme/steps/benchmark/beam/auto_memory.yaml"),
-        Path("reme/steps/benchmark/lme/auto_memory.yaml"),
-    )
-    for prompt_file in prompt_files:
-        content = prompt_file.read_text(encoding="utf-8")
-        assert "date={today}" in content or "`date`: {today}" in content or "`date`：{today}" in content
+    prompt_file = Path("reme/steps/evolve/auto_memory.yaml")
+    evolve_prompt = prompt_file.read_text(encoding="utf-8")
+    assert "date={today}" in evolve_prompt or "`date`: {today}" in evolve_prompt or "`date`：{today}" in evolve_prompt
+    assert "enable_tags" not in evolve_prompt
+    assert "tags_key" not in evolve_prompt
 
 
 def test_configs_define_original_jobs_without_daily_variants():
     from reme.config import resolve_app_config
 
-    for config_name in ("default", "lme", "beam"):
+    for config_name in ("default",):
         config = resolve_app_config(config=config_name, log_config=False)
         jobs = config["jobs"]
         for name in ("read", "edit", "write", "frontmatter_update", "daily_write"):
             assert name in jobs, f"{config_name} missing job {name}"
         for name in ("read_daily", "edit_daily", "write_daily"):
             assert name not in jobs, f"{config_name} unexpectedly defines {name}"
+
+    default = resolve_app_config(config="default", log_config=False)
+    assert default["jobs"]["auto_memory"]["steps"] == [
+        {"backend": "auto_memory_step"},
+        {"backend": "auto_tag_step"},
+    ]
+    assert default["jobs"]["auto_memory_cc"]["steps"] == [
+        {"backend": "auto_memory_cc_step"},
+        {"backend": "auto_tag_step"},
+    ]
 
 
 if __name__ == "__main__":

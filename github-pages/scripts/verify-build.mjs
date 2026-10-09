@@ -1,0 +1,159 @@
+import assert from "node:assert/strict";
+import { access, readFile, readdir } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const siteDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const outputDir = path.join(siteDir, "dist");
+
+async function collectFiles(directory, prefix = "") {
+  const files = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const relativePath = path.posix.join(prefix, entry.name);
+    if (entry.isDirectory()) files.push(...await collectFiles(path.join(directory, entry.name), relativePath));
+    else files.push(relativePath);
+  }
+  return files;
+}
+
+function pageUrl(relativePath) {
+  if (relativePath === "index.html") return "/";
+  if (relativePath.endsWith("/index.html")) return `/${relativePath.slice(0, -"index.html".length)}`;
+  return `/${relativePath.slice(0, -".html".length)}`;
+}
+
+function routeExists(pathname, files) {
+  const relativePath = decodeURIComponent(pathname).replace(/^\/+/, "");
+  if (!relativePath) return files.has("index.html");
+  if (relativePath.endsWith("/")) return files.has(`${relativePath}index.html`);
+  return files.has(relativePath) || files.has(`${relativePath}.html`) || files.has(`${relativePath}/index.html`);
+}
+
+const requiredFiles = [
+  "index.html",
+  "404.html",
+  "CNAME",
+  "reme-icon.svg",
+  "reme-logo.svg",
+  "ecosystem/qwenpaw.png",
+  "ecosystem/deepseek-harness.svg",
+  "ecosystem/openclaw.svg",
+  "ecosystem/claude-code.png",
+  "ecosystem/hermes.svg",
+  "ecosystem/zvec.ico",
+  "ecosystem/faiss.png",
+  "hashmap.json",
+  "sitemap.xml",
+  "llms.txt",
+  "llms-full.txt",
+  "zh/index.html",
+  "en/index.html",
+  "zh/overview.html",
+  "en/overview.html",
+  "zh/traffic.html",
+  "en/traffic.html",
+  "zh/configuration.html",
+  "en/configuration.html",
+  "zh/reme-blog.html",
+  "en/reme-blog.html",
+  "zh/blog_20260920.html",
+  "en/blog_20260920.html",
+  "zh/services.html",
+  "en/services.html",
+  "studio/index.html",
+  "studio/reme-icon.svg",
+  "zh/workspace/studio.html",
+  "en/workspace/studio.html",
+  "zh/reference/jobs.html",
+  "en/reference/jobs.html",
+  "zh/configuration/llms.txt",
+  "en/configuration/llms.txt",
+];
+
+for (const relativePath of requiredFiles) await access(path.join(outputDir, relativePath));
+
+assert.equal((await readFile(path.join(outputDir, "CNAME"), "utf8")).trim(), "reme.agentscope.io");
+
+const homepage = await readFile(path.join(outputDir, "index.html"), "utf8");
+assert.ok(homepage.includes('href="/en/"'), "root language switch must link to /en/");
+assert.ok(!homepage.includes('href="/en/ex"'), "root language switch must not produce /en/ex");
+assert.ok(homepage.includes('"studio-en":"/en/workspace/studio"'), "legacy redirects must be embedded");
+
+const ChineseHomepage = await readFile(path.join(outputDir, "zh/index.html"), "utf8");
+assert.match(ChineseHomepage, /8cafe9df-d883-4046-b5e9-36dfd21a4884/);
+assert.match(ChineseHomepage, /用真实评测/);
+assert.match(ChineseHomepage, /89\.4%/);
+assert.match(ChineseHomepage, /公开、透明的访问趋势/);
+
+const ChineseStudio = await readFile(path.join(outputDir, "zh/workspace/studio.html"), "utf8");
+assert.match(ChineseStudio, /href="\/studio\/\?lang=zh"/);
+assert.match(ChineseStudio, /<span[^>]*>体验Studio<\/span>/);
+assert.doesNotMatch(ChineseStudio, /<aside[^>]*class="VPSidebar/);
+
+const EnglishStudio = await readFile(path.join(outputDir, "en/workspace/studio.html"), "utf8");
+assert.match(EnglishStudio, /href="\/studio\/\?lang=en"/);
+assert.match(EnglishStudio, /<span[^>]*>Try Studio<\/span>/);
+
+// Studio is a separate static app: every entry must bypass VitePress routing.
+for (const language of ["zh", "en"]) {
+  for (const page of ["index.html", "workspace/studio.html"]) {
+    const html = await readFile(path.join(outputDir, language, page), "utf8");
+    const links = [...html.matchAll(/<a\b[^>]*href="\/studio\/\?lang=[^"]+"[^>]*>/g)];
+    assert.ok(links.length, `${language}/${page}: Studio entry exists`);
+    for (const [link] of links) assert.match(link, /target="_self"/, "Studio must use full-page navigation");
+  }
+}
+
+const studioDemo = await readFile(path.join(outputDir, "studio/index.html"), "utf8");
+assert.match(studioDemo, /<title>Try ReMe Studio<\/title>/);
+for (const match of studioDemo.matchAll(/(?:src|href)="(\.\/[^"?#]+)"/g)) {
+  await access(path.join(outputDir, "studio", match[1]));
+}
+
+const ChineseTraffic = await readFile(path.join(outputDir, "zh/traffic.html"), "utf8");
+assert.match(ChineseTraffic, /S1OZK1PSDLEpyiU5/);
+
+const sitemap = await readFile(path.join(outputDir, "sitemap.xml"), "utf8");
+assert.ok(sitemap.includes("<lastmod>"), "sitemap must include canonical-source update times");
+assert.ok(!sitemap.includes("<loc>https://reme.agentscope.io/</loc>"), "root redirect must not be indexed");
+assert.ok(!sitemap.includes('hreflang="zh-CN" href="https://reme.agentscope.io/"'), "root must not duplicate zh-CN");
+
+const ChineseConfiguration = await readFile(path.join(outputDir, "zh/configuration.html"), "utf8");
+assert.match(ChineseConfiguration, /搜索文档/);
+assert.match(ChineseConfiguration, /复制 Markdown/);
+assert.match(ChineseConfiguration, /在 GitHub 查看源文件/);
+
+const ChineseBlog = await readFile(path.join(outputDir, "zh/blog_20260920.html"), "utf8");
+assert.match(ChineseBlog, /<h1[^>]*>给记忆加上“标签”/);
+assert.match(ChineseBlog, />记忆标签<\/p>/, "the Chinese sidebar must use the localized article name");
+assert.match(
+  ChineseBlog,
+  /<a class="VPLink link link" href="\/zh\/reme-blog"[^>]*>.*?<h2 class="text"[^>]*>ReMe 博客<\/h2>/,
+  "the blog sidebar heading must link to the blog landing page",
+);
+
+const EnglishBlog = await readFile(path.join(outputDir, "en/blog_20260920.html"), "utf8");
+assert.match(EnglishBlog, /<h1[^>]*>ReMe Memory Tags/);
+assert.match(EnglishBlog, /How Does the Tag Index Work\?/);
+assert.doesNotMatch(EnglishBlog, /full article is currently available in Chinese/);
+
+const jobReference = await readFile(path.join(outputDir, "en/reference/jobs.html"), "utf8");
+assert.match(jobReference, /Job API Reference/);
+assert.match(jobReference, /auto_memory/);
+
+const outputFiles = new Set(await collectFiles(outputDir));
+const missingLinks = [];
+for (const relativePath of [...outputFiles].filter((file) => file.endsWith(".html"))) {
+  const html = await readFile(path.join(outputDir, relativePath), "utf8");
+  const currentUrl = new URL(pageUrl(relativePath), "https://reme-docs.local");
+  for (const match of html.matchAll(/<a\b[^>]*\bhref="([^"]+)"/g)) {
+    const href = match[1].replaceAll("&amp;", "&");
+    if (href.startsWith("#")) continue;
+    const target = new URL(href, currentUrl);
+    if (target.origin !== currentUrl.origin) continue;
+    if (!routeExists(target.pathname, outputFiles)) missingLinks.push(`${relativePath}: ${href}`);
+  }
+}
+assert.deepEqual(missingLinks, [], `missing internal links:\n${missingLinks.join("\n")}`);
+
+console.log(`Verified ${requiredFiles.length} documentation build artifacts.`);

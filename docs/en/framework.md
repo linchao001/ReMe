@@ -58,6 +58,7 @@ reme/
   plugin.py                  # installed plugin contract and entry-point loader
   config/
     default.yaml             # default service / jobs / components
+    cookbook.yaml            # Auto Fin + Daily Paper + DingTalk composition
     config_parser.py         # config=, dot notation, and env placeholder parsing
   components/
     component_registry.py    # backend registry and application-local copies
@@ -76,14 +77,14 @@ reme/
   steps/
     base_step.py             # BaseStep, Ref, dispatch_steps
     common/                  # version, help, health_check, status, chat
-    benchmark/               # LongMemEval / BEAM evaluation steps
-    cookbook/                # optional research workflow steps
     file_io/                 # read/write/edit/delete/move/frontmatter/daily
     index/                   # watch/init/update/search/traverse
     evolve/                  # auto_memory, auto_resource, auto_dream, proactive
     transfer/                # upload/download
 plugins/
+  dingtalk/                  # independent DingTalk integration plugin distribution
   auto-fin/                  # independent example plugin distribution
+  daily_paper/               # independent paper-research plugin distribution
 integrations/
   claude_code/               # Claude Code adapter and marketplace
   hermes_agent/              # Hermes Agent memory-provider adapter
@@ -173,8 +174,8 @@ HTTP service behavior:
 
 After registering Job endpoints, the HTTP service can also mount the ReMe Studio single-page application. The default is
 `service.web_enabled=true`. Builds are resolved from `service.web_static_dir`, `REME_WEB_STATIC_DIR`, the optional
-`reme-ai-studio` package installed by the `web` and `core` extras, and source-tree locations such as
-`website/dist-static`. If no `index.html` is found, only the frontend is skipped and the Job API remains available. The
+`reme_studio` package installed by the `web` and `core` extras, and source-tree locations such as
+`reme_studio/dist-static`. If no `index.html` is found, only the frontend is skipped and the Job API remains available. The
 Studio `GET` fallback does not replace existing `POST /<job.name>` routes.
 
 MCP service behavior:
@@ -240,22 +241,28 @@ Plugin registration therefore stays local to one application;
 duplicate `(component_type, backend)` providers fail during assembly instead of overwriting each other.
 
 The legacy Python `Plugin` descriptor and `reme.configs` entry points remain accepted during migration. Configuration
-files can use `extends` to inherit another built-in, legacy plugin, or file-based configuration. The
-[Auto Fin plugin](../../plugins/auto-fin/README.md) is the current packaging example.
+files can use `extends` to inherit another built-in, legacy plugin, or file-based configuration. See the independently
+packaged [DingTalk](../../plugins/dingtalk/README.md), [Auto Fin](../../plugins/auto-fin/README.md), and
+[Daily Paper](../../plugins/daily_paper/README.md) plugins.
 
 Plugin packages are managed locally and remain separate from per-application activation:
 
 ```bash
 reme plugins list
-reme plugins install reme-auto-fin
-reme plugins show auto-fin
-reme plugins validate auto-fin
-reme plugins uninstall auto-fin
+reme plugins install plugins/dingtalk
+reme plugins install plugins/auto-fin
+reme plugins install plugins/daily_paper
+reme plugins show daily-paper
+reme plugins validate daily-paper
+reme plugins uninstall daily-paper
 
-reme start plugins='["auto-fin"]'
+reme start config=cookbook
 ```
 
 These management commands use the current Python interpreter's pip and never run through an HTTP or MCP service.
+The built-in `cookbook` configuration composes the three plugins, adds DingTalk delivery to the two report pipelines,
+and starts the DingTalk Agent bridge as a background Job. Enabling Auto Fin or Daily Paper alone keeps it independent
+from DingTalk.
 
 ### 4.3 Component.bind
 
@@ -419,7 +426,6 @@ jobs:
     steps:
       - backend: dream_extract_step
       - backend: dream_integrate_step
-      - backend: dream_topics_step
       - backend: dream_finish_step
 ```
 
@@ -431,9 +437,9 @@ The current implementation uses `croniter` to calculate the next trigger time. T
 ```mermaid
 flowchart LR
     Jobs["default.yaml jobs"] --> BG["background<br/>index_update_loop<br/>resource_watch_loop<br/>digest_watch_loop"]
-    Jobs --> Cron["cron<br/>dream_cron<br/>optimize_index_cron"]
+    Jobs --> Cron["cron<br/>dream_cron<br/>proactive_refresh_cron<br/>optimize_index_cron"]
     Jobs --> Stream["stream<br/>chat"]
-    Jobs --> Base["base<br/>version / help / health_check / status / app_config<br/>search / node_search / traverse / graph_snapshot / reindex<br/>read / load / read_image / write / save / edit / delete / move / list / stat / frontmatter_*<br/>daily_list / daily_reindex / daily_write<br/>auto_memory / auto_memory_cc / auto_resource / auto_dream / proactive"]
+    Jobs --> Base["base<br/>version / help / health_check / status / app_config<br/>search / node_search / traverse / graph_snapshot / reindex<br/>read / load / read_image / write / save / edit / delete / move / list / stat / frontmatter_*<br/>daily_list / daily_reindex / daily_write<br/>auto_memory / auto_memory_cc / auto_resource / auto_dream / proactive_refresh / proactive_read"]
 ```
 
 ## 7. Step Model
@@ -801,7 +807,6 @@ jobs:
       - backend: dream_extract_step
         file_catalog: dream
       - backend: dream_integrate_step
-      - backend: dream_topics_step
       - backend: dream_finish_step
         file_catalog: dream
 ```

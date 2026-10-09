@@ -13,11 +13,14 @@ shell-outs:
 # pylint: disable=protected-access,missing-function-docstring,unused-argument
 
 import os
+import json
 import socket
 from types import SimpleNamespace
 
 import psutil
+import pytest
 
+from reme.constants import normalize_connect_host
 from reme.utils import service_utils as su
 
 # ----------------------------------------------------------------------
@@ -125,6 +128,17 @@ def test_scan_reme_procs_parses_host_and_port(monkeypatch):
     assert su._scan_reme_procs() == [(123, "0.0.0.0", 8123)]
 
 
+def test_scan_reme_procs_accepts_prefixed_cli_arguments(monkeypatch):
+    procs = [
+        _FakeProc(
+            123,
+            cmdline=["reme", "start", "--service.host=0.0.0.0", "-service.port=8123"],
+        ),
+    ]
+    _patch_iter(monkeypatch, procs)
+    assert su._scan_reme_procs() == [(123, "0.0.0.0", 8123)]
+
+
 def test_scan_reme_procs_defaults_when_args_absent(monkeypatch):
     procs = [_FakeProc(7, cmdline=["reme", "start"])]
     _patch_iter(monkeypatch, procs)
@@ -158,6 +172,11 @@ def test_scan_reme_procs_skips_access_denied(monkeypatch):
     assert su._scan_reme_procs() == [(5, su.REME_DEFAULT_HOST, su.REME_DEFAULT_PORT)]
 
 
+def test_connect_host_converts_wildcard_bind_address():
+    assert normalize_connect_host("0.0.0.0") == "127.0.0.1"
+    assert normalize_connect_host("192.0.2.10") == "192.0.2.10"
+
+
 def test_running_app_config_preserves_plugins(monkeypatch):
     """Process replay exposes the full config while the compatibility helper returns service only."""
     monkeypatch.setattr(su, "_reme_start_argv", lambda: [["config=example"]])
@@ -175,3 +194,54 @@ def test_running_app_config_preserves_plugins(monkeypatch):
         "service": {"backend": "plugin-client", "port": 9911},
     }
     assert su.running_service_config() == {"backend": "plugin-client", "port": 9911}
+
+
+def test_discovery_ignores_container_init_and_replays_real_cli(monkeypatch):
+    """Tini's original argv omits environment overrides applied by the entrypoint."""
+    procs = [
+        _FakeProc(1, cmdline=["/usr/bin/tini", "--", "python", "/usr/local/lib/reme_container.py", "start"]),
+        _FakeProc(2, cmdline=["/opt/venv/bin/python", "/opt/venv/bin/reme", "start", 'service={"port":8124}']),
+    ]
+    _patch_iter(monkeypatch, procs)
+    assert su._reme_start_argv() == [['service={"port":8124}']]
+    assert su.running_service_config()["port"] == 8124
+    assert su._scan_reme_procs() == [(2, su.REME_DEFAULT_HOST, 8124)]
+
+
+def test_discovery_resolves_mounted_config_port(tmp_path, monkeypatch):
+    """find_reme follows ports from JSON configs as well as dot-notation overrides."""
+    config = tmp_path / "reme.json"
+    config.write_text(json.dumps({"service": {"backend": "http", "host": "0.0.0.0", "port": 8125}}))
+    _patch_iter(monkeypatch, [_FakeProc(2, cmdline=["reme", "start", f"config={config}"])])
+    assert su._scan_reme_procs() == [(2, "0.0.0.0", 8125)]
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["reme", "--start"],
+        ["python3.11", "-u", "-m", "reme.reme", "-start"],
+        ["/opt/venv/bin/python", "/opt/venv/bin/reme", "start"],
+        ["C:\\Python\\python.exe", "C:\\Python\\Scripts\\reme.exe", "start"],
+    ],
+)
+def test_discovery_accepts_cli_launchers_and_action_prefixes(command, monkeypatch):
+    _patch_iter(monkeypatch, [_FakeProc(7, cmdline=command)])
+    assert su._reme_start_argv() == [[]]
+    assert su._scan_reme_procs() == [(7, su.REME_DEFAULT_HOST, su.REME_DEFAULT_PORT)]
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["tini", "--", "reme", "start"],
+        ["dumb-init", "reme", "start"],
+        ["python", "/usr/local/lib/reme_container.py", "start"],
+        ["python", "-c", "reme.py", "start"],
+        ["other-reme-app", "start"],
+    ],
+)
+def test_discovery_filters_supervisors_and_unrelated_commands(command, monkeypatch):
+    _patch_iter(monkeypatch, [_FakeProc(7, cmdline=command)])
+    assert not su._reme_start_argv()
+    assert not su._scan_reme_procs()

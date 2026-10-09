@@ -30,10 +30,7 @@ htmlcov/
 build/
 dist/
 *.egg-info/
-
-# Website build integration source (not generated output)
-!website/build/
-!website/build/**
+integrations/*/reports/
 
 # Logs / temporary files
 *.log

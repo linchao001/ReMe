@@ -13,6 +13,25 @@ if TYPE_CHECKING:
     from ...steps import BaseStep
 
 
+def _describe_exception(exc: BaseException) -> str:
+    """Render an exception and its causes without dropping empty messages."""
+    parts: list[str] = []
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        message = str(current).strip()
+        name = type(current).__name__
+        parts.append(f"{name}: {message}" if message else name)
+        if current.__cause__ is not None:
+            current = current.__cause__
+        elif not current.__suppress_context__:
+            current = current.__context__
+        else:
+            current = None
+    return " <- ".join(parts)
+
+
 @R.register("base")
 class BaseJob(BaseComponent):
     """Job that executes steps sequentially and returns a Response."""
@@ -25,12 +44,14 @@ class BaseJob(BaseComponent):
         parameters: dict | None = None,
         steps: list[ComponentConfig | dict] | None = None,
         enable_serve: bool = True,
+        enabled: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.description = description
         self.parameters = parameters or {}
         self.step_configs = steps or []
+        self.enabled = enabled
         self.enable_serve = enable_serve
         self.step_specs: list[tuple[type["BaseStep"], dict]] = []
 
@@ -64,8 +85,14 @@ class BaseJob(BaseComponent):
         if isinstance(metadata, dict):
             global_counter_inc(metadata, ["__job_counter", self.name])
 
+    def check_enabled(self) -> None:
+        """Reject execution of a disabled job."""
+        if not self.enabled:
+            raise ValueError(f"Job '{self.name}' is disabled")
+
     async def __call__(self, **kwargs) -> Response:
         """Run all steps in order, capturing any failure into the response."""
+        self.check_enabled()
         self._record_call()
         merged = {**self.kwargs, **kwargs}
         context = RuntimeContext(**merged)
@@ -75,5 +102,5 @@ class BaseJob(BaseComponent):
         except Exception as e:
             self.logger.exception(f"Failed to execute job: {e}")
             context.response.success = False
-            context.response.answer = str(e)
+            context.response.answer = _describe_exception(e)
         return context.response

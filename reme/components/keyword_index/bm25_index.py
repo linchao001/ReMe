@@ -15,19 +15,22 @@ lists keep the stale entries until `optimize_index` rewrites them. Updating an
 existing doc_id retires the old slot first, then allocates a fresh idx.
 """
 
+import asyncio
 import hashlib
 import json
 import math
 import pickle
 import re
 from collections import Counter
-from collections.abc import KeysView
+from collections.abc import Collection, KeysView
 from pathlib import Path
+from uuid import uuid4
 
 import numpy as np
 
 from .base_keyword_index import BaseKeywordIndex
 from ..component_registry import R
+from ...utils.async_utils import complete_in_thread
 
 
 @R.register("bm25")
@@ -44,6 +47,7 @@ class BM25Index(BaseKeywordIndex):
         self._doc_ids: list[str] = []
         self._doc_id_to_idx: dict[str, int] = {}
         self._doc_lens: np.ndarray = np.zeros(0, dtype=np.int32)
+        self._total_len = 0
         self._deleted: np.ndarray = np.zeros(0, dtype=bool)
         self._doc_token_ids: list[np.ndarray] = []
 
@@ -52,6 +56,7 @@ class BM25Index(BaseKeywordIndex):
 
         # IDF cache; invalidated whenever live-doc count or postings change.
         self._idf_cache: dict[int, float] = {}
+        self._dump_lock = asyncio.Lock()
 
     # -- Properties -----------------------------------------------------------
 
@@ -102,7 +107,7 @@ class BM25Index(BaseKeywordIndex):
     @property
     def total_len(self) -> int:
         """Sum of token counts across live documents."""
-        return 0 if self._deleted.size == 0 else int(self._doc_lens[~self._deleted].sum())
+        return self._total_len
 
     @property
     def avg_len(self) -> float:
@@ -161,6 +166,7 @@ class BM25Index(BaseKeywordIndex):
         if idx is None or self._deleted[idx]:
             return
         self._deleted[idx] = True
+        self._total_len -= int(self._doc_lens[idx])
         self._doc_id_to_idx.pop(doc_id, None)
         self._idf_cache = {}
 
@@ -206,6 +212,7 @@ class BM25Index(BaseKeywordIndex):
         self._doc_token_ids.extend(new_doc_token_ids)
         self._doc_lens = np.concatenate([self._doc_lens, np.array(new_doc_lens, dtype=np.int32)])
         self._deleted = np.concatenate([self._deleted, np.zeros(len(new_doc_ids), dtype=bool)])
+        self._total_len += int(self._doc_lens[-len(new_doc_ids) :].sum())
 
     def _extend_postings(self, pending: dict[int, list[tuple[int, int]]]) -> None:
         """Append pending (doc_idx, tf) pairs to each token's posting list."""
@@ -276,31 +283,64 @@ class BM25Index(BaseKeywordIndex):
             self._remove_doc(doc_id)
         self._idf_cache = {}
 
-    def _score_query(self, query_ids: list[int], n_docs: int) -> np.ndarray:
-        """Compute BM25 scores across all docs; deleted docs zeroed out."""
+    def _score_query(self, query_ids: list[int], candidate_idxs: np.ndarray | None = None) -> np.ndarray:
+        """Compute BM25 scores globally or for selected live document indexes."""
+        n_docs = self.n_docs
+        if n_docs == 0:
+            size = self._doc_lens.size if candidate_idxs is None else candidate_idxs.size
+            return np.zeros(size, dtype=np.float32)
+
         avg_len = self.total_len / n_docs
         k1, b = self.k1, self.b
         denom_base = k1 * (1.0 - b)
         denom_norm = k1 * b / avg_len if avg_len > 0 else 0.0
 
-        scores = np.zeros(self._doc_lens.size, dtype=np.float32)
+        size = self._doc_lens.size if candidate_idxs is None else candidate_idxs.size
+        scores = np.zeros(size, dtype=np.float32)
         for tid in query_ids:
-            doc_idxs = self._posting_doc_idxs.get(tid)
-            if doc_idxs is None or doc_idxs.size == 0:
+            posting_idxs = self._posting_doc_idxs.get(tid)
+            if posting_idxs is None or posting_idxs.size == 0:
                 continue
             idf = self._get_idf(tid, n_docs)
             if idf == 0.0:
                 continue
-            tfs = self._posting_tfs[tid].astype(np.float32)
-            d_lens = self._doc_lens[doc_idxs].astype(np.float32)
+
+            if candidate_idxs is None:
+                posting_positions = slice(None)
+                score_positions = posting_idxs
+            else:
+                _common, posting_positions, score_positions = np.intersect1d(
+                    posting_idxs,
+                    candidate_idxs,
+                    assume_unique=True,
+                    return_indices=True,
+                )
+                if score_positions.size == 0:
+                    continue
+
+            doc_idxs = posting_idxs[posting_positions]
+            tfs = self._posting_tfs[tid][posting_positions].astype(np.float32)
+            doc_lens = self._doc_lens[doc_idxs].astype(np.float32)
             # Each doc_idx appears at most once per posting list (Counter dedups
             # within a doc, and updates allocate fresh idxs), so fancy-index
             # accumulation is safe here.
-            scores[doc_idxs] += idf * tfs * (k1 + 1.0) / (tfs + denom_base + denom_norm * d_lens)
+            scores[score_positions] += idf * tfs * (k1 + 1.0) / (tfs + denom_base + denom_norm * doc_lens)
 
-        if self._deleted.any():
+        if candidate_idxs is None and self._deleted.any():
             scores[self._deleted] = 0.0
         return scores
+
+    def _score_query_documents(
+        self,
+        query_ids: list[int],
+        document_ids: Collection[str],
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Score live selected documents while retaining global BM25 statistics."""
+        candidate_idxs = np.array(
+            sorted({self._doc_id_to_idx[doc_id] for doc_id in document_ids if doc_id in self._doc_id_to_idx}),
+            dtype=np.int32,
+        )
+        return candidate_idxs, self._score_query(query_ids, candidate_idxs)
 
     async def retrieve(self, query: str, limit: int = 3) -> dict[str, float]:
         """BM25 retrieval; returns {doc_id: score} sorted by score descending."""
@@ -311,9 +351,34 @@ class BM25Index(BaseKeywordIndex):
         if not query_ids:
             return {}
 
-        scores = self._score_query(query_ids, n_docs)
+        scores = self._score_query(query_ids)
         top_idxs = self._top_k(scores, limit)
         return {self._doc_ids[int(i)]: float(scores[int(i)]) for i in top_idxs}
+
+    async def score_documents(self, query: str, document_ids: Collection[str]) -> dict[str, float]:
+        """Return every positive-scoring selected document in descending order."""
+        query_ids = self._encode_query(query)
+        if not query_ids:
+            return {}
+        candidate_idxs, scores = self._score_query_documents(query_ids, document_ids)
+        ranked = self._top_k(scores, scores.size)
+        return {self._doc_ids[int(candidate_idxs[i])]: float(scores[i]) for i in ranked}
+
+    async def retrieve_filtered(
+        self,
+        query: str,
+        limit: int,
+        document_ids: Collection[str],
+    ) -> dict[str, float]:
+        """Return exact BM25 top-k within selected documents."""
+        if limit <= 0:
+            return {}
+        query_ids = self._encode_query(query)
+        if not query_ids:
+            return {}
+        candidate_idxs, scores = self._score_query_documents(query_ids, document_ids)
+        ranked = self._top_k(scores, limit)
+        return {self._doc_ids[int(candidate_idxs[i])]: float(scores[i]) for i in ranked}
 
     # -- Persistence ----------------------------------------------------------
 
@@ -322,14 +387,16 @@ class BM25Index(BaseKeywordIndex):
         return {
             "tokenizer_config": self._tokenizer_config(),
             "tokenizer_fingerprint": self._tokenizer_fingerprint(),
-            "vocab": self.vocab,
-            "doc_ids": self._doc_ids,
-            "doc_id_to_idx": self._doc_id_to_idx,
-            "doc_lens": self._doc_lens,
-            "deleted": self._deleted,
-            "doc_token_ids": self._doc_token_ids,
-            "posting_doc_idxs": self._posting_doc_idxs,
-            "posting_tfs": self._posting_tfs,
+            "vocab": dict(self.vocab),
+            "doc_ids": list(self._doc_ids),
+            "doc_id_to_idx": dict(self._doc_id_to_idx),
+            "doc_lens": self._doc_lens.copy(),
+            "deleted": self._deleted.copy(),
+            "doc_token_ids": [token_ids.copy() for token_ids in self._doc_token_ids],
+            "posting_doc_idxs": {token_id: doc_idxs.copy() for token_id, doc_idxs in self._posting_doc_idxs.items()},
+            "posting_tfs": {
+                token_id: term_frequencies.copy() for token_id, term_frequencies in self._posting_tfs.items()
+            },
             "k1": self.k1,
             "b": self.b,
         }
@@ -345,6 +412,8 @@ class BM25Index(BaseKeywordIndex):
         self._doc_id_to_idx = data["doc_id_to_idx"]
         self._doc_lens = data["doc_lens"]
         self._deleted = data["deleted"]
+        # Derived state: old snapshots remain valid without a format change.
+        self._total_len = int(self._doc_lens[~self._deleted].sum())
         self._doc_token_ids = data["doc_token_ids"]
         self._posting_doc_idxs = data["posting_doc_idxs"]
         self._posting_tfs = data["posting_tfs"]
@@ -354,27 +423,37 @@ class BM25Index(BaseKeywordIndex):
 
     async def dump(self) -> None:
         """Persist the index via temp file + atomic rename to avoid torn writes."""
-        if self.n_docs == 0 and not self.vocab:
-            self.index_file.unlink(missing_ok=True)
-            return
+        async with self._dump_lock:
+            if self.n_docs == 0 and not self.vocab:
+                self.index_file.unlink(missing_ok=True)
+                return
+            try:
+                # Keep snapshotting synchronous so the worker receives one coherent
+                # index generation. Move it off-loop only if profiling identifies this
+                # copy, rather than pickle/file I/O, as a material event-loop stall.
+                snapshot = self._snapshot()
+                await complete_in_thread(self._dump_sync, snapshot)
+                self.logger.info(f"Saved {self.n_docs} docs to {self.index_file}")
+            except Exception as e:
+                self.logger.exception(f"Failed to write {self.index_file}: {e}")
+                raise
+
+    def _dump_sync(self, snapshot: dict) -> None:
+        self.index_file.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.index_file.with_name(f".{self.index_file.name}.{uuid4().hex}.tmp")
         try:
-            self.index_file.parent.mkdir(parents=True, exist_ok=True)
-            tmp = self.index_file.with_suffix(".tmp")
-            with open(tmp, "wb") as f:
-                pickle.dump(self._snapshot(), f)
+            with open(tmp, "wb") as file:
+                pickle.dump(snapshot, file)
             tmp.replace(self.index_file)
-            self.logger.info(f"Saved {self.n_docs} docs to {self.index_file}")
-        except Exception as e:
-            self.logger.exception(f"Failed to write {self.index_file}: {e}")
-            raise
+        finally:
+            tmp.unlink(missing_ok=True)
 
     async def load(self) -> None:
         """Load from disk; missing file is a no-op, corrupt file resets state."""
         if not self.index_file.exists():
             return
         try:
-            with open(self.index_file, "rb") as f:
-                data = pickle.load(f)
+            data = await asyncio.to_thread(self._load_sync)
             self._restore(data)
             self.logger.info(f"Loaded {self.n_docs} docs from {self.index_file}")
         except Exception as e:
@@ -382,18 +461,24 @@ class BM25Index(BaseKeywordIndex):
             self.index_file.unlink(missing_ok=True)
             await self.clear()
 
+    def _load_sync(self) -> dict:
+        with open(self.index_file, "rb") as file:
+            return pickle.load(file)
+
     async def clear(self) -> None:
         """Reset in-memory state and remove the persisted file."""
-        self.vocab = {}
-        self._doc_ids = []
-        self._doc_id_to_idx = {}
-        self._doc_lens = np.zeros(0, dtype=np.int32)
-        self._deleted = np.zeros(0, dtype=bool)
-        self._doc_token_ids = []
-        self._posting_doc_idxs = {}
-        self._posting_tfs = {}
-        self._idf_cache = {}
-        self.index_file.unlink(missing_ok=True)
+        async with self._dump_lock:
+            self.vocab = {}
+            self._doc_ids = []
+            self._doc_id_to_idx = {}
+            self._doc_lens = np.zeros(0, dtype=np.int32)
+            self._total_len = 0
+            self._deleted = np.zeros(0, dtype=bool)
+            self._doc_token_ids = []
+            self._posting_doc_idxs = {}
+            self._posting_tfs = {}
+            self._idf_cache = {}
+            self.index_file.unlink(missing_ok=True)
 
     # -- Compaction -----------------------------------------------------------
 
@@ -474,6 +559,7 @@ class BM25Index(BaseKeywordIndex):
         self._doc_ids = new_doc_ids
         self._doc_id_to_idx = {doc_id: i for i, doc_id in enumerate(new_doc_ids)}
         self._doc_lens = self._doc_lens[active_mask].astype(np.int32, copy=True)
+        self._total_len = int(self._doc_lens.sum())
         self._deleted = np.zeros(n_active, dtype=bool)
         self._doc_token_ids = new_doc_token_ids
         self._posting_doc_idxs = new_posting_idxs

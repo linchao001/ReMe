@@ -84,7 +84,7 @@ ReMe 用目录表达记忆组织和记忆分层。原始材料先进入 `resourc
 │   ├── YYYY-MM-DD.md                 # 当天索引页
 │   └── YYYY-MM-DD/
 │       ├── <generated_name>.md       # 按主题命名的对话或资源卡片
-│       └── interests.yaml            # auto_dream 产出的主动兴趣主题
+│       └── interests.yaml            # proactive refresh 产出的主动兴趣主题
 └── digest/                           # 深加工层；可长期复用的个人事实、流程经验、知识节点
     ├── personal/
     │   └── <memory>.md               # 用户画像、偏好、长期个人事实
@@ -219,7 +219,8 @@ FileLink
 
 旧文档中的 `related:: [[path]]`、`- related:: [[path]]` 或
 `[related:: [[path]]]` 仍然可以读取。ReMe 会忽略外围文本，把内部 `[[path]]`
-作为普通链接建立索引。从曾存储 typed link 的版本升级后，应执行一次 `reme reindex`，用源文件重建不含旧关系字段的派生图索引。
+作为普通链接建立索引。源文件通过正常摄取路径时会应用图谱变更。`reme reindex` 只基于现有 chunks 重建 BM25 和 Embedding
+索引，不会重新解析文件或重建派生图谱。
 
 ### 来源和关系
 
@@ -363,3 +364,7 @@ FileChunk[]
 这样检索命中时，Agent 不只看到孤立段落，还能看到它在原文件中的结构位置。
 
 非 Markdown 默认走 `DefaultFileChunker`：按字节大小切分，并保留少量 overlap；对 Markdown 则会避免把 `[[wikilink]]` 从中间切开。
+
+`DefaultFileChunker` 和 `MarkdownFileChunker` 使用各自配置的 `encoding` 解码文件，并在索引前将平台换行符统一为
+LF。默认的 `invalid_encoding_policy: replace` 会在源文件含无效字节时保留其中可解码的内容用于检索，但不会修改源
+文件；如需拒绝此类文件，可在 chunker 组件上设置 `invalid_encoding_policy: strict`。

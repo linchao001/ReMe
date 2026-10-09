@@ -46,26 +46,30 @@ and concise documentation together.
 - `reme/components/service/`: local CLI, HTTP, and MCP service backends.
 - `reme/components/`: agent wrappers, model adapters, stores, catalogs, graphs, indexes, clients, tokenizers, and
   outbound proxies.
-- `reme/steps/`: registered job steps grouped by common, file I/O, index, evolve, cookbook, benchmark, and transfer
+- `reme/steps/`: registered job steps grouped by common, file I/O, index, evolve, cookbook, and transfer
   concerns.
 - `reme/utils/`: shared utilities, including service discovery, logging, web-static resolution, session I/O, token
   accounting, and wikilink handling.
 - `tests/unit/`: primary fast, isolated validation suite.
 - `tests/integration/`: service/model tests that may need credentials or external processes.
-- `website/`: ReMe Workspace frontend source; its static build can be served by the HTTP service.
-- `plugins/`: installable ReMe extensions, such as Auto Fin.
-- `integrations/`: adapters that connect ReMe to external agent hosts, such as Claude Code, DSH, and Hermes Agent.
+- `reme_studio/`: ReMe Studio frontend source plus the independently published `reme_studio` Python package and
+  `@agentscope-ai/reme_studio` npm static distribution.
+- `plugins/`: installable ReMe extensions, including Auto Fin and LME/BEAM plugins.
+- `integrations/`: adapters that connect ReMe to external agent hosts, including the independent, self-contained DSH
+  and OpenClaw TypeScript plugins plus the Claude Code and Hermes Agent integrations.
 - `skills/`: standalone skills; `reme_memory` calls ReMe, while other skills may use separate tools or direct-file
   conventions.
 - `benchmark/` and `cookbook/`: runnable evaluations and example workflows.
 - `docs/`: README-linked supporting pages and figures.
+- `github-pages/`: VitePress build shell, generated-content assembly, documentation checks, and GitHub Pages output. The
+  canonical theme and guides remain under `docs/`; `.generated/` and `dist/` are disposable.
 
 ## Development Setup
 
 ReMe requires Python 3.11 or newer. Install the editable development environment with:
 
 ```bash
-pip install -e packages/reme_ai_studio -e ".[dev,core]"
+pip install -e reme_studio -e ".[dev,core]"
 ```
 
 Before changing behavior, inspect the adjacent implementation, schema, built-in config, and focused tests. Follow
@@ -185,25 +189,29 @@ pre-commit run --all-files
 ```
 
 Black and Flake8 use a 120-character line limit and Python 3.11 formatting; Pylint is also run by pre-commit. If
-`website/` changes, use its Node 22.13+ scripts and run the proportionate checks from that directory, such as
+`reme_studio/` changes, use its Node 22.13+ scripts and run the proportionate checks from that directory, such as
 `npm run format:check`, `npm run lint`, or `npm test`.
 
 Integration tests may contact real model providers, services, or agent subprocesses and can require credentials. Do not
 run credentialed or externally mutating tests automatically; run them only when the task requires them and the necessary
 environment has been supplied or authorized. Mock network, model, and subprocess boundaries in unit tests.
 
+If documentation or the documentation theme changes, run `npm test` and `npm run build` from `github-pages/`. The Job
+reference is generated from `reme/config/default.yaml`; do not edit generated pages directly.
+
 ## Change Guardrails
 
 - Preserve unrelated user changes in a dirty working tree.
 - Make the smallest coherent change and avoid unrelated cleanup or broad refactors.
 - Do not edit generated output when the source can be changed instead. The publish workflow builds
-  `website/dist-static` and copies it into `reme/web`; change `website/` source for frontend work.
+  `reme_studio/dist-static` and stages it under `reme_studio/src/reme_studio/static`; change `reme_studio/` source for
+  frontend work.
 - Do not silently change CLI flags, configuration keys, workspace layouts, serialized schemas, endpoint shapes,
   streaming termination, or service interfaces. Preserve compatibility where practical and document intentional
   migrations.
 - Do not introduce dependencies without a concrete repository-level need.
 - Do not commit `.env` files, credentials, runtime memory, logs, indexes, caches, benchmark outputs, or generated
-  website distributions.
+  Studio distributions.
 - State which validations passed and which relevant checks were not run in the final handoff.
 
 If a requirement is ambiguous, infer intent from nearby code, schemas, defaults, and tests. Ask the user only when the

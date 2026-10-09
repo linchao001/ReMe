@@ -1,8 +1,12 @@
 """Abstract base for file store backends."""
 
+import asyncio
 from abc import abstractmethod
+from contextlib import asynccontextmanager
+from functools import wraps
 
 from ..base_component import BaseComponent
+from ..tag_index import BaseTagIndex
 from ...enumeration import ComponentEnum, LinkScopeEnum
 from ...schema import FileChunk, FileLink, FileNode
 
@@ -17,6 +21,53 @@ class BaseFileStore(BaseComponent):
     """
 
     component_type = ComponentEnum.FILE_STORE
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.tag_index: BaseTagIndex | None = None
+        self._maintenance_lock = asyncio.Lock()
+        self._maintenance_lock_owner = None
+
+    @property
+    def tag_index_enabled(self) -> bool:
+        """Whether this file-store backend has a tag index configured."""
+        return self.tag_index is not None
+
+    def require_tag_index(self) -> BaseTagIndex:
+        """Return the configured tag index or fail with one consistent error."""
+        if self.tag_index is None:
+            raise RuntimeError("tag index is not configured")
+        return self.tag_index
+
+    @property
+    def embedding_dimensions(self) -> int:
+        """Vector dimensions used for memory estimates; zero when unavailable."""
+        return 0
+
+    @asynccontextmanager
+    async def _maintenance_guard(self):
+        """Serialize maintenance and mutations, allowing nested backend overrides."""
+        task = asyncio.current_task()
+        if self._maintenance_lock_owner is task:
+            yield
+            return
+        async with self._maintenance_lock:
+            self._maintenance_lock_owner = task
+            try:
+                yield
+            finally:
+                self._maintenance_lock_owner = None
+
+    @staticmethod
+    def serialized(method):
+        """Mark a mutation or maintenance method as mutually exclusive."""
+
+        @wraps(method)
+        async def wrapped(self, *args, **kwargs):
+            async with self._maintenance_guard():  # pylint: disable=protected-access
+                return await method(self, *args, **kwargs)
+
+        return wrapped
 
     # -- CRUD -----------------------------------------------------------------
 
@@ -72,3 +123,11 @@ class BaseFileStore(BaseComponent):
         Meant to be invoked off the request path (cron / idle schedulers).
         Backends without derived index state keep the default no-op.
         """
+
+    async def require_embedding_rebuild(self) -> None:
+        """Disable vector reads and writes until a full manual rebuild."""
+        raise NotImplementedError
+
+    async def reindex(self, scope: str) -> dict:
+        """Rebuild derived search indexes from current chunks without rescanning files."""
+        raise NotImplementedError

@@ -78,6 +78,41 @@ session/
 Each daily note points to its corresponding conversation record. Saved messages omit tool-result blocks and base64 data
 blocks, preventing recalled memory and binary payloads from being mistaken for user-provided evidence later.
 
+## Images in Conversations
+
+Auto Memory can read images together with the surrounding conversation. Images are disabled by default; enable them for a
+call with `include_images=true`.
+
+Image input requires an `agentscope` wrapper with a vision-capable `as_llm` model and compatible formatter.
+Auto Memory uses that model to read the conversation, without generating captions first. When images are disabled or no
+image blocks are present, the existing text-only behavior is unchanged, including support for other wrappers.
+
+Pass images as top-level AgentScope `DataBlock` values in `messages`, with an `image/` media type. Text and images stay in
+their original order, with speaker and timestamp boundaries preserved. Base64 sources and HTTP(S) URLs pass unchanged to
+the formatter; Auto Memory does not download or preprocess the images. URLs must be accessible to the model provider. For local
+files, submit Base64 instead of a `file://` URL; other URL schemes are also unsupported.
+
+The wrapper's `context_config.max_image_num` limits the number of images per call; Auto Memory rejects excess images rather
+than increasing the limit. The AgentScope default is 5. To use a higher limit, set it when starting the service:
+
+```bash
+reme start components.agent_wrapper.default.context_config.max_image_num=20
+```
+
+Then call the running service from another terminal, using the same workspace:
+
+```bash
+reme auto_memory session_id=session-a include_images=true messages='[...]'
+```
+
+Model and formatter limits still apply. When image input is enabled and images are present, Auto Memory checks the wrapper
+backend, URL schemes and image count before saving the conversation. Later formatter or provider errors are returned
+without retrying as text-only. As with text-only calls, those errors do not roll back an already saved conversation.
+
+Source JSONL saving follows the filtering rules above, including the omission of Base64 blocks. To process those images
+again, resubmit the original messages rather than the saved JSONL. No separate image files or caption cards are created,
+though the wrapper's internal Agent state under `mem_session/agentscope` can contain image inputs.
+
 ## Message Timestamps
 
 Auto Memory preserves each retained message's `created_at` in both the prompt and the source conversation JSONL. When importing historical
@@ -109,6 +144,14 @@ reme auto_memory \
 ```
 
 ## What Happens Next
+
+The default `auto_memory` and `auto_memory_cc` jobs run `auto_tag_step` after recording memory. Only a daily note that
+was actually created or modified is tagged, using its final path after any rename. Claude Code callers still pass only
+`session_id`; repeated Stop events with no new messages skip both memory generation and tagging.
+
+Tags describe the document's central entities and are stored in the configured frontmatter key (`memory_tags` by default).
+Per-file tagging failures are reported in `metadata.auto_tag` while preserving the memory response. Calls without note
+changes do not automatically retry failed tagging; the existing file watcher updates the tag index asynchronously.
 
 Auto Memory only creates memory in the daily layer. To distill this material further into long-term `digest/` nodes, use
 [Auto Dream](./auto_dream.md). To search daily and digest content, use [Memory Search](./memory_search.md).

@@ -13,6 +13,7 @@ from reme.config.config_parser import _load_config
 from reme.enumeration import ComponentEnum
 from reme.plugin import Backend, Plugin, PluginManager, _load_backend
 from reme.plugin_manifest import parse_plugin_manifest
+from reme.schema import ApplicationConfig
 
 
 class _PluginStep(ComponentMixin):
@@ -41,6 +42,22 @@ class _FakeEntryPoints(list):
 
 def _set_entry_points(monkeypatch, *entries):
     monkeypatch.setattr("reme.entry_point.metadata.entry_points", lambda: _FakeEntryPoints(entries))
+
+
+@pytest.mark.parametrize("name", ["lme", "beam"])
+def test_shared_benchmark_preset_is_builtin_but_plugin_aliases_and_backends_are_not(monkeypatch, name):
+    _set_entry_points(monkeypatch)
+    benchmark = _load_config("benchmark")
+    assert {"index_update", "digest_update", "read", "write"} <= benchmark["jobs"].keys()
+    assert {"search", "auto_memory", "agentic_answer", "answer_judge"}.isdisjoint(benchmark["jobs"])
+    for alias in (name, f"{name}.yaml"):
+        with pytest.raises(FileNotFoundError, match="Config file not found"):
+            _load_config(alias)
+    assert R.get(ComponentEnum.STEP, f"{name}_auto_memory_step") is None
+    assert R.get(ComponentEnum.STEP, f"{name}_agentic_answer_step") is None
+    assert R.get(ComponentEnum.STEP, f"{name}_search_v2_step") is None
+    judge = "lme_answer_judge_step" if name == "lme" else "beam_rubric_judge_step"
+    assert R.get(ComponentEnum.STEP, judge) is None
 
 
 def test_plugin_application_defaults_are_below_application_config():
@@ -173,6 +190,42 @@ def test_plugin_manager_loads_package_manifest(monkeypatch, tmp_path):
     assert backend is not None
     assert backend.__name__ == "ExampleStep"
     assert manager.merge_config({})["jobs"]["example"]["backend"] == "base"
+
+
+@pytest.mark.parametrize(
+    ("candidate", "judge", "candidate_package", "judge_package", "judge_backend"),
+    [
+        ("lme", "lme-judge", "reme_lme", "judge_lme", "lme_answer_judge_step"),
+        ("beam", "beam-judge", "reme_beam", "judge_beam", "beam_rubric_judge_step"),
+    ],
+)
+def test_benchmark_candidate_and_judge_plugins_compose(
+    monkeypatch,
+    candidate,
+    judge,
+    candidate_package,
+    judge_package,
+    judge_backend,
+):
+    root = Path(__file__).resolve().parents[2]
+    monkeypatch.syspath_prepend(str(root / "plugins" / candidate / "src"))
+    monkeypatch.syspath_prepend(str(root / "plugins" / judge / "src"))
+    _set_entry_points(
+        monkeypatch,
+        _FakeEntryPoint(candidate, candidate_package, lambda: None, "reme.plugins"),
+        _FakeEntryPoint(judge, judge_package, lambda: None, "reme.plugins"),
+    )
+
+    manager = PluginManager.discover([candidate, judge])
+    registry = ComponentRegistry()
+    manager.register(registry)
+    merged = manager.merge_config(_load_config("benchmark"))
+
+    assert {"auto_memory", "search", "agentic_answer", "answer_judge"} <= merged["jobs"].keys()
+    assert registry.get(ComponentEnum.STEP, judge_backend) is not None
+    assert "judge" in merged["components"]["as_llm"]
+    assert "judge" in merged["components"]["agent_wrapper"]
+    ApplicationConfig.model_validate(merged)
 
 
 def test_plugin_manifest_rejects_legacy_defaults_field():

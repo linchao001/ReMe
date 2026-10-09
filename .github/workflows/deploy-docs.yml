@@ -6,13 +6,20 @@ on:
     paths:
       - "github-pages/**"
       - "docs/**"
+      - "reme/config/default.yaml"
+      - "integrations/claude_code/README.md"
+      - "integrations/hermes_agent/README.md"
+      - "integrations/hermes_agent/figures/**"
       - "README.md"
       - "README_ZH.md"
-      - "website/README*.md"
-      - "website/public/og.jpg"
+      - "reme_studio/**"
+      - "integrations/dsh/README*.md"
+      - "integrations/dsh/figures/**"
+      - "integrations/openclaw/README*.md"
+      - "integrations/openclaw/figures/**"
       - "plugins/*/README*.md"
       - "benchmark/*/README*.md"
-      - "skills/reme_memory/SKILL.md"
+      - "benchmark/toolmemory/gitcha.png"
       - "AGENTS.md"
       - ".github/workflows/deploy-docs.yml"
       - ".github/workflows/_build-docs.yml"
@@ -20,8 +27,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -32,7 +37,7 @@ jobs:
     name: Build documentation
     uses: ./.github/workflows/_build-docs.yml
     with:
-      run_tests: false
+      run_tests: true
       upload_pages_artifact: true
     permissions:
       contents: read
@@ -45,7 +50,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
     steps:
       - name: Deploy
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -73,7 +73,42 @@ class FakeProviderModel:
 class InsufficientQuotaError(Exception):
     """OpenAI-compatible quota error used without importing the provider SDK."""
 
+    status_code = 429
     body = {"error": {"code": "insufficient_quota"}}
+
+
+class RateLimitError(Exception):
+    """OpenAI-compatible 429 error used without importing the provider SDK."""
+
+    status_code = 429
+
+
+class RateLimitedThenSuccessAsEmbedding:
+    """Fail once with a 429, then return a valid embedding."""
+
+    dimensions = 2
+
+    def __init__(self):
+        self.calls = 0
+
+    async def __call__(self, texts: list[str], **_kwargs):
+        self.calls += 1
+        if self.calls == 1:
+            raise RateLimitError("Requests are too frequent")
+        return [[1.0, 0.0] for _ in texts]
+
+
+class AlwaysRateLimitedAsEmbedding:
+    """Always fail with a 429."""
+
+    dimensions = 2
+
+    def __init__(self):
+        self.calls = 0
+
+    async def __call__(self, _texts: list[str], **_kwargs):
+        self.calls += 1
+        raise RateLimitError("Requests are too frequent")
 
 
 class QuotaThenSuccessAsEmbedding:
@@ -266,6 +301,78 @@ def test_insufficient_quota_does_not_retry_without_opt_in(monkeypatch):
         assert result is None
         assert embedding.calls == 1
         assert not sleeps
+
+    run(go())
+
+
+def test_rate_limit_retries_with_backoff_without_opt_in(monkeypatch):
+    """A 429 must retry like a network error, with no quota_retry_delay required."""
+
+    async def go():
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        store = LocalEmbeddingStore(name="t_local_embedding_rate_limit", max_retries=2)
+        embedding = RateLimitedThenSuccessAsEmbedding()
+        store.as_embedding = embedding
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        result = await store._call_with_retry(["text"])
+
+        assert result == [[1.0, 0.0]]
+        assert embedding.calls == 2
+        assert sleeps == [1.0]
+
+    run(go())
+
+
+def test_is_rate_limited_recognizes_status_code_or_body_and_nothing_else():
+    """A 429 is recognized either by status_code or a body-embedded code, never by guesswork."""
+
+    class StatusCodeError(Exception):
+        """A 429 identified by an HTTP status code attribute."""
+
+        status_code = 429
+
+    class BodyCodeError(Exception):
+        """A 429 identified only by a body-embedded error code."""
+
+        body = {"error": {"code": "rate_limit_exceeded"}}
+
+    assert LocalEmbeddingStore._is_rate_limited(StatusCodeError())
+    assert LocalEmbeddingStore._is_rate_limited(BodyCodeError())
+    assert not LocalEmbeddingStore._is_rate_limited(ValueError("unrelated"))
+
+
+def test_is_rate_limited_defers_to_insufficient_quota_on_status_code_429():
+    """An insufficient_quota error carrying status_code=429 is not the generic rate-limit case."""
+
+    assert not LocalEmbeddingStore._is_rate_limited(InsufficientQuotaError("quota exhausted"))
+    assert LocalEmbeddingStore._is_insufficient_quota(InsufficientQuotaError("quota exhausted"))
+
+
+def test_rate_limit_exhausts_retries_and_reports_unhealthy(monkeypatch):
+    """Repeated 429s still give up after max_retries, unlike an unclassified error."""
+
+    async def go():
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        store = LocalEmbeddingStore(name="t_local_embedding_rate_limit_exhausted", max_retries=3)
+        embedding = AlwaysRateLimitedAsEmbedding()
+        store.as_embedding = embedding
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        result = await store._call_with_retry(["text"])
+
+        assert result is None
+        assert store.is_healthy is False
+        assert embedding.calls == 3
+        assert sleeps == [1.0, 2.0]
 
     run(go())
 
@@ -509,24 +616,95 @@ def test_cache_space_is_rechecked_after_async_load(monkeypatch, tmp_path):
     run(go())
 
 
-def test_completed_request_only_writes_to_its_active_cache_space():
-    """A v3 request must not populate v4 after the provider switches back to v3."""
+def test_whole_request_retries_after_vector_space_changes_between_batches():
+    """Completed batches must be discarded when a later batch changes vector space."""
 
     async def go():
-        embedding = OpenAIAsEmbedding(name="t_space_write_race", backend="openai", model="v3", dimensions=2)
-        store = LocalEmbeddingStore(name="t_local_write_race")
+        embedding = FakeAsEmbedding()
+        embedding.vector_space_id = "v3"
+        store = LocalEmbeddingStore(name="t_local_write_race", max_batch_size=1, enable_cache=False)
         store.as_embedding = embedding
         store._cache_space = embedding.vector_space_id
+        calls = 0
 
-        async def compute_after_round_trip(_batch, **_kwargs):
-            embedding.model = FakeProviderModel("v4")
-            store._cache_space = embedding.vector_space_id
-            embedding.model = FakeProviderModel("v3")
-            return [(0, "key", np.array([3.0, 0.0], dtype=np.float16))]
+        async def switch_during_second_batch(batch, **_kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                embedding.vector_space_id = "v4"
+            idx, _text, key = batch[0]
+            version = 3.0 if calls < 3 else 4.0
+            return [(idx, key, np.array([version, 0.0], dtype=np.float16))]
 
-        store._compute_batch = compute_after_round_trip
-        await store._fill_misses([(0, "text", "key")], [None])
+        store._compute_batch = switch_during_second_batch
+        results = await store.get_embeddings(["first", "second"])
 
+        assert calls == 4
+        assert store._cache_space == embedding.vector_space_id
+        for result in results:
+            np.testing.assert_array_equal(result, np.array([4.0, 0.0], dtype=np.float16))
+
+    run(go())
+
+
+def test_whole_request_rereads_cache_after_vector_space_changes(monkeypatch, tmp_path):
+    """A cache hit from the old space must not survive a later provider switch."""
+
+    async def go():
+        monkeypatch.setattr(
+            LocalEmbeddingStore,
+            "component_metadata_path",
+            property(lambda _self: tmp_path),
+        )
+        embedding = FakeAsEmbedding()
+        embedding.vector_space_id = "v3"
+        store = LocalEmbeddingStore(name="t_local_cache_race", enable_cache=True)
+        store.as_embedding = embedding
+        store._cache_space = embedding.vector_space_id
+        first_key = store._cache_key("first")
+        store._cache[first_key] = np.array([3.0, 0.0], dtype=np.float16)
+        calls = 0
+
+        async def switch_on_miss(batch, **_kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                embedding.vector_space_id = "v4"
+            version = 3.0 if calls == 1 else 4.0
+            return [(idx, key, np.array([version, 0.0], dtype=np.float16)) for idx, _text, key in batch]
+
+        store._compute_batch = switch_on_miss
+        results = await store.get_embeddings(["first", "second"])
+
+        assert calls == 2
+        for result in results:
+            np.testing.assert_array_equal(result, np.array([4.0, 0.0], dtype=np.float16))
+
+    run(go())
+
+
+def test_whole_request_stops_retrying_when_vector_space_keeps_changing():
+    """Continuous configuration churn must discard the whole request instead of blocking forever."""
+
+    async def go():
+        embedding = FakeAsEmbedding()
+        embedding.vector_space_id = "v3"
+        store = LocalEmbeddingStore(name="t_local_write_churn")
+        store.as_embedding = embedding
+        store._cache_space = embedding.vector_space_id
+        calls = 0
+
+        async def change_space_every_time(_batch, **_kwargs):
+            nonlocal calls
+            calls += 1
+            embedding.vector_space_id = f"v{calls + 3}"
+            return [(0, "key", np.array([float(calls), 0.0], dtype=np.float16))]
+
+        store._compute_batch = change_space_every_time
+        results = await store.get_embeddings(["text"])
+
+        assert calls == 3
+        assert results == [None]
         assert "key" not in store._cache
 
     run(go())

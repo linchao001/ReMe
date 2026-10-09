@@ -1,13 +1,16 @@
 """Tests for service job registration behavior."""
 
 import asyncio
+import json
+import os
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 
 from reme.components.job import BaseJob, StreamJob
-from reme.components.service import MCPService
+from reme.components.service import HttpService, MCPService
+from reme.constants import REME_SERVICE_INFO
 from reme.schema import Response
 
 
@@ -33,12 +36,13 @@ def _app_with_jobs(**jobs):
     return SimpleNamespace(context=SimpleNamespace(jobs=jobs))
 
 
-def test_service_registers_all_enabled_jobs_by_default():
+@pytest.mark.parametrize("options", [{"enable_serve": False}, {"enabled": False}])
+def test_service_registers_all_enabled_jobs_by_default(options):
     """Omitting service.jobs preserves registration of every service-enabled job."""
     service = MCPService()
     service.add_job = Mock(return_value=True)
     enabled = BaseJob(name="enabled")
-    disabled = BaseJob(name="disabled", enable_serve=False)
+    disabled = BaseJob(name="disabled", **options)
 
     service.add_jobs(_app_with_jobs(enabled=enabled, disabled=disabled))
 
@@ -70,7 +74,8 @@ def test_empty_service_jobs_disables_job_registration():
     service.add_job.assert_not_called()
 
 
-def test_explicit_service_jobs_reject_missing_disabled_and_unsupported_jobs():
+@pytest.mark.parametrize("options", [{"enable_serve": False}, {"enabled": False}])
+def test_explicit_service_jobs_reject_missing_disabled_and_unsupported_jobs(options):
     """An explicit service.jobs list fails instead of starting an incomplete service."""
     missing_service = MCPService(jobs=["missing"])
     with pytest.raises(KeyError, match="missing"):
@@ -78,7 +83,7 @@ def test_explicit_service_jobs_reject_missing_disabled_and_unsupported_jobs():
 
     disabled_service = MCPService(jobs=["disabled"])
     with pytest.raises(ValueError, match="disabled"):
-        disabled_service.add_jobs(_app_with_jobs(disabled=BaseJob(name="disabled", enable_serve=False)))
+        disabled_service.add_jobs(_app_with_jobs(disabled=BaseJob(name="disabled", **options)))
 
     stream_service = MCPService(jobs=["stream"])
     stream_service.add_job = Mock(return_value=False)
@@ -188,5 +193,30 @@ def test_service_lifespan_closes_app_after_error():
             async with lifespan(None):
                 raise RuntimeError("stop")
         assert events == ["start", "close"]
+
+    asyncio.run(run())
+
+
+def test_network_services_bind_loopback_by_default():
+    """HTTP and network MCP services stay local unless remote access is explicit."""
+    assert HttpService().host == "127.0.0.1"
+    assert MCPService().host == "127.0.0.1"
+
+
+def test_network_services_accept_explicit_wildcard_bind():
+    """Remote access remains available through explicit service configuration."""
+    assert HttpService(host="0.0.0.0").host == "0.0.0.0"
+    assert MCPService(host="0.0.0.0").host == "0.0.0.0"
+
+
+def test_service_lifespan_advertises_loopback_for_wildcard_bind(monkeypatch):
+    """In-process clients receive a connectable address, not the wildcard bind address."""
+    monkeypatch.delenv(REME_SERVICE_INFO, raising=False)
+
+    async def run():
+        app = _dummy_app()
+        lifespan = HttpService()._lifespan(app, "0.0.0.0", 8123)  # pylint: disable=protected-access
+        async with lifespan(None):
+            assert json.loads(os.environ[REME_SERVICE_INFO]) == {"host": "127.0.0.1", "port": 8123}
 
     asyncio.run(run())

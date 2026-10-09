@@ -1,0 +1,71 @@
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
+import { APP_TITLE, BRAND_NAME } from "./branding";
+import "./globals.css";
+
+const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+const remeStudioOgImage =
+  "https://github.com/user-attachments/assets/7d0db0d4-69c5-49ef-b1ca-ef8c6cab1138";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const requestHeaders = await headers();
+  const host =
+    requestHeaders.get("x-forwarded-host") ||
+    requestHeaders.get("host") ||
+    "localhost:3000";
+  const protocol =
+    requestHeaders.get("x-forwarded-proto") ||
+    (host.startsWith("localhost") ? "http" : "https");
+  const metadataBase = new URL(`${protocol}://${host}`);
+
+  return {
+    metadataBase,
+    title: APP_TITLE,
+    description:
+      `Browse, edit, and discuss your local-first ${BRAND_NAME} memory workspace.`,
+    icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
+    openGraph: {
+      title: APP_TITLE,
+      description: "本地优先的 Agent 记忆工作区",
+      images: [
+        {
+          url: remeStudioOgImage,
+          width: 2400,
+          height: 1252,
+          alt: `${APP_TITLE} memory workspace`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: APP_TITLE,
+      description: "本地优先的 Agent 记忆工作区",
+      images: [remeStudioOgImage],
+    },
+  };
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="zh-CN" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("reme-theme")||"system";var d=t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.dataset.theme=d?"dark":"light"}catch(e){}})()`,
+          }}
+        />
+      </head>
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        {children}
+      </body>
+    </html>
+  );
+}

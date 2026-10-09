@@ -1,21 +1,17 @@
 """Schema"""
 
 from .application_config import ApplicationConfig, ComponentConfig, JobConfig
-from .daily_paper import (
-    AnalyzedPaper,
-    DailyPaperMarkdownOutput,
-    PaperInfo,
-    PaperPick,
-    PaperPickList,
-)
 from .dream import (
     DreamExtractOutput,
     DreamState,
-    DreamTopic,
     DreamUnit,
     IntegrateOutcome,
+)
+from .proactive import (
     ProactiveResult,
-    TopicSelectionOutput,
+    ProactiveState,
+    ProactiveStateFile,
+    ProactiveTopic,
 )
 from .emb_node import EmbNode
 from .file_chunk import FileChunk
@@ -32,11 +28,8 @@ from .traverse_graph import TraverseGraph, TraverseGraphEdge, TraverseGraphNode
 __all__ = [
     "ApplicationConfig",
     "ComponentConfig",
-    "AnalyzedPaper",
-    "DailyPaperMarkdownOutput",
     "DreamExtractOutput",
     "DreamState",
-    "DreamTopic",
     "DreamUnit",
     "EmbNode",
     "FileChunk",
@@ -48,15 +41,14 @@ __all__ = [
     "GraphSnapshotNode",
     "IntegrateOutcome",
     "JobConfig",
-    "PaperInfo",
-    "PaperPick",
-    "PaperPickList",
     "ProactiveResult",
+    "ProactiveState",
+    "ProactiveStateFile",
+    "ProactiveTopic",
     "Request",
     "Response",
     "StreamChunk",
     "TokenUsage",
-    "TopicSelectionOutput",
     "TraverseGraph",
     "TraverseGraphEdge",
     "TraverseGraphNode",

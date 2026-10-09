@@ -28,7 +28,7 @@ import yaml
 from dotenv import load_dotenv
 
 # Load .env from project root
-_PROJECT_ROOT = Path(__file__).parent.parent.parent
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(_PROJECT_ROOT / ".env")
 
 # Workspace root for evaluation items — read from config.yaml (dataset.workspace_root)
@@ -150,6 +150,23 @@ def load_eval_config(config_path: str | None = None) -> dict:
     return yaml.safe_load(raw)
 
 
+def create_reme_app(config: str = "benchmark", **overrides):
+    """Create an app with the LongMemEval candidate and judge plugins enabled.
+
+    Plugin discovery remains environment-based; editable installation keeps local
+    plugin source changes visible to every multiprocessing worker.
+    """
+    from reme import Application
+    from reme.config import resolve_app_config
+
+    enabled_plugins = list(overrides.pop("plugins", ()) or ())
+    for plugin in ("lme", "lme-judge"):
+        if plugin not in enabled_plugins:
+            enabled_plugins.append(plugin)
+    app_config = resolve_app_config(config=config, plugins=enabled_plugins, **overrides)
+    return Application(**app_config)
+
+
 # ---------------------------------------------------------------------------
 # Date utilities
 # ---------------------------------------------------------------------------
@@ -257,8 +274,6 @@ async def evaluate_item(item: dict, eval_config: dict, item_index: int, eval_onl
             using the existing workspace. Useful for re-evaluating different query
             configurations without re-ingesting sessions.
     """
-    from reme import Application
-    from reme.config import resolve_app_config
     from reme.utils.evaluation_interface import track_agent_token_usage, track_job_counts
 
     reme_cfg = eval_config["reme"]
@@ -325,15 +340,15 @@ async def evaluate_item(item: dict, eval_config: dict, item_index: int, eval_onl
                 force_init=True,
             )
 
-    cfg = resolve_app_config(
+    app = create_reme_app(
         config=reme_cfg["config"],
+        plugins=reme_cfg.get("plugins", ()),
         workspace_dir=workspace_dir,
         log_to_console=output_cfg.get("log_to_console", True),
         log_to_file=output_cfg.get("log_to_file", False),
         enable_logo=False,
     )
 
-    app = Application(**cfg)
     await app.start()
 
     try:

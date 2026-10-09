@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 from ..base_component import BaseComponent
 from ..job.base_job import BaseJob
-from ...constants import REME_SERVICE_INFO
+from ...constants import REME_SERVICE_INFO, normalize_connect_host
 from ...enumeration import ComponentEnum
 
 if TYPE_CHECKING:
@@ -52,15 +52,16 @@ class BaseService(BaseComponent):
     def _lifespan(self, app: "Application", host: str, port: int):
         """Build an async-context lifespan that brackets the server with app start/close.
 
-        Publishes the bound address via the REME_SERVICE_INFO environment variable so
-        in-process clients can discover where this service is listening.
+        Publishes a connectable address via the REME_SERVICE_INFO environment variable
+        so in-process clients can discover the service even when it binds a wildcard.
         """
 
         @asynccontextmanager
         async def lifespan(_):
             await app.start()
             try:
-                service_info = json.dumps({"host": host, "port": port})
+                advertised_host = normalize_connect_host(host)
+                service_info = json.dumps({"host": advertised_host, "port": port})
                 os.environ[REME_SERVICE_INFO] = service_info
                 self.logger.info(f"{self.name} started: {REME_SERVICE_INFO}={service_info}")
                 yield
@@ -75,12 +76,16 @@ class BaseService(BaseComponent):
             missing = sorted(self.jobs.difference(app.context.jobs))
             if missing:
                 raise KeyError(f"Service jobs not found: {', '.join(missing)}")
-            disabled = sorted(name for name in self.jobs if not app.context.jobs[name].enable_serve)
+            disabled = sorted(
+                name
+                for name in self.jobs
+                if not app.context.jobs[name].enabled or not app.context.jobs[name].enable_serve
+            )
             if disabled:
                 raise ValueError(f"Service jobs are not enabled for serving: {', '.join(disabled)}")
 
         for name, job in app.context.jobs.items():
-            if not job.enable_serve or (self.jobs is not None and name not in self.jobs):
+            if not job.enabled or not job.enable_serve or (self.jobs is not None and name not in self.jobs):
                 continue
             try:
                 added = self.add_job(job)

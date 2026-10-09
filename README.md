@@ -1,5 +1,5 @@
 <p align="center">
- <img src="docs/figure/reme_logo.png" alt="ReMe Logo" width="50%">
+ <img src="https://raw.githubusercontent.com/agentscope-ai/ReMe/main/docs/figure/reme_logo.png" alt="ReMe Logo" width="50%">
 </p>
 
 <p align="center">
@@ -27,52 +27,71 @@
 > [0.2.x](https://github.com/agentscope-ai/ReMe/tree/v0.2.0.6) ·
 > [MemoryScope](https://github.com/agentscope-ai/ReMe/tree/memoryscope_branch)
 
-🧠 ReMe turns conversations and resources into readable, editable, searchable, and interconnected Markdown memory. It
-works alongside agents such as QwenPaw, OpenClaw, Hermes, and Claude Code, continuously organizing what they learn while
-keeping the files under the user's control.
+## ✨ Why ReMe?
 
-## ✨ Core Ideas
+🧠 ReMe turns conversations and resources into readable, editable, searchable, and interconnected Markdown memory. Agents
+such as QwenPaw and DeepSeek Harness can share the same workspace to retrieve, maintain, and evolve knowledge, while
+users retain control of the durable files.
 
-- **Memory as File, File as Memory**: Markdown files with frontmatter and wikilinks serve as memory nodes that both
-  users and agents can inspect, edit, move, and back up directly.
-- **Self-evolving knowledge base**: Auto Memory, Auto Resource, and Auto Dream progressively transform conversations and
-  resources into daily notes and long-term knowledge, while Auto Link writes relationships and sources back into the
-  files.
-- **Progressive hybrid search**: ReMe combines wikilinks, BM25, and embeddings for hybrid retrieval across keyword
-  matching, optional semantic recall, and relationship expansion without loading every neighboring file into context.
-- **Agent-friendly integration**: SKILL.md + CLI integration makes it easy for different agents to read, write,
-  maintain, and reuse the same local workspace. HTTP, MCP, and Python integrations are also available.
+- **Memory as File, File as Memory**: ReMe stores durable memory as ordinary Markdown with frontmatter and wikilinks.
+  Users and agents can inspect, edit, move, sync, and back it up with familiar tools, while indexes and generated
+  metadata remain rebuildable.
+- **Self-evolving knowledge base**: ReMe progressively turns conversations and resources into daily notes and long-term
+  knowledge, preserving sources while refining facts, preferences, procedures, and relationships over time.
+- **Recall is precise and context-aware.** BM25, optional embeddings, and wikilink expansion retrieve relevant
+  line-level passages and their relationships without loading the entire knowledge base into the agent context.
+- **One memory workspace works across agents.** Personal assistants, coding agents, and other agent runtimes can share
+  the same local workspace through native integrations, SKILL.md, CLI, HTTP, MCP, or Python APIs.
 
 <p align="center">
   <img src="docs/figure/design-philosophy.svg" alt="ReMe Design Philosophy" width="92%">
 </p>
 
-## 🔭 Use Cases
+## 📰 Latest Updates
 
-- **Personal assistants**: Give personal assistants such as
-  [QwenPaw](https://github.com/agentscope-ai/QwenPaw), [OpenClaw](https://github.com/openclaw/openclaw), and
-  [Hermes](https://github.com/nousresearch/hermes-agent) a user-editable long-term memory layer.
-- **Coding agents**: Preserve coding style, project background, repository decisions, and workflow experience across
-  sessions when integrating with coding agents such as [Claude Code](integrations/claude_code/reme).
-- **LLM Wiki**: Turn conversations, notes, and resources into a searchable, traceable, and linked Markdown knowledge
-  base that both users and agents can maintain.
-- **Self-evolving agents**: Support agents that learn from experience by saving successful paths, failed attempts,
-  reusable procedures, and periodic reflections as memory.
+- [2026.10] - **[ReMe Studio Playground](https://reme.agentscope.io/studio/?lang=en) is live**: explore example memory
+  files, edit Markdown, and browse linked memory graphs right in your browser—no installation or backend required.
+  Everyone is welcome to [try it out](https://reme.agentscope.io/studio/?lang=en)!
 
-## 📰 News
+  <p align="center">
+    <a href="https://reme.agentscope.io/studio/?lang=en">
+      <img src="https://raw.githubusercontent.com/agentscope-ai/ReMe/main/reme_studio/figures/studio-overview.png" alt="ReMe Studio workspace preview — click to try the Playground" width="480" style="margin: 0 auto;">
+    </a>
+  </p>
 
-- [2026.08] - Published [`@agentscope-ai/reme`](https://www.npmjs.com/package/@agentscope-ai/reme), providing a native
-  ReMe memory integration for DeepSeek Harness.
-- [2026.08] - Published the [ReMe blog](https://agentscope-ai.github.io/ReMe/?doc=en-reme-blog), an end-to-end introduction to its local-first memory
-  architecture, self-evolving workflows, hybrid search, proactive discovery, and benchmark results.
-- [2026.08] - [Experience-driven enhancement method](https://reme.agentscope.io/?doc=toolmemory-en) of agent tool-use execution built
-  on ReMe is available on [arXiv:2608.03403](https://arxiv.org/abs/2608.03403).
-- [2026.07] - Introduced optional Cookbooks: [Daily Paper](https://reme.agentscope.io/?doc=daily-paper-en) for paper discovery and
-  analysis, and [Auto Fin](https://reme.agentscope.io/?doc=auto-fin-en) for researching the latest 24 hours of topic-related CLS news
-  with local-memory search and validated historical wikilinks.
+- [2026.09] - **[ReMe Memory Tags](https://reme.agentscope.io/en/blog_20260920) published**: an introduction
+  to file-native entity tags, rebuildable tag indexes, and tag-filtered memory search.
+- [2026.09] - **[Hermes Agent memory provider](https://reme.agentscope.io/en/integrations/hermes) available**: choose HTTP or embedded
+  mode for automatic recall before model calls and asynchronous `auto_memory` after completed turns. The integration
+  supports Hermes Agent 0.21+ and includes profile-aware background work.
+- [2026.09] - **[OpenClaw plugin](https://reme.agentscope.io/en/integrations/openclaw) released**: install it from
+  [ClawHub](https://clawhub.ai/agentscope-ai/plugins/reme-openclaw-plugin) or
+  [npm](https://www.npmjs.com/package/@agentscope-ai/reme-openclaw-plugin) to add native memory recall, automatic
+  conversation capture, and scheduled consolidation to OpenClaw.
+- [2026.09] - **[DeepSeek Harness plugin](https://reme.agentscope.io/en/integrations/dsh) released**: install it from
+  [Awesome DSH Plugin](https://awesome-dsh-plugin.com/p/agentscope-ai/ReMe--integrations-dsh/) or
+  [npm](https://www.npmjs.com/package/@agentscope-ai/reme-dsh-plugin) for long-term-memory guidance, `reme_search`,
+  automatic memory, Auto Dream, and ReMe Status.
+
+<details>
+<summary>More updates</summary>
+
+- [2026.08] - **ReMe blog published**: the [ReMe blog](https://reme.agentscope.io/en/reme-blog) introduces the
+  local-first memory architecture, self-evolving workflows, hybrid search, proactive discovery, and benchmark results.
+- [2026.08] - **New ReMe ecosystem plugins**: [Daily Paper](https://reme.agentscope.io/en/plugins/daily-paper)
+  discovers and analyzes papers and generates file-native briefs, while
+  [Auto Fin](https://reme.agentscope.io/en/plugins/auto-fin) researches the latest 24 hours of topic-related CLS news
+  and builds traceable reports with local memory. Try them out.
+- [2026.08] - **Plugin development support released**: use [Plugin Development](https://reme.agentscope.io/en/plugin_development) and
+  [Plugin Management](https://reme.agentscope.io/en/plugin_management) to extend ReMe with Components, Steps, and Jobs. Contributions and
+  new community plugins are welcome.
+- [2026.08] - ReMe's [experience-driven enhancement method](https://reme.agentscope.io/en/benchmarks/toolmemory) for
+  agent tool use is available on [arXiv:2608.03403](https://arxiv.org/abs/2608.03403).
 - [2026.07] - Our
   paper [Remember Me, Refine Me: A Dynamic Procedural Memory Framework for Experience-Driven Agent Evolution](https://aclanthology.org/2026.findings-acl.829/)
   has been accepted to Findings of ACL 2026.
+
+</details>
 
 ## 🚀 Quick Start
 
@@ -91,8 +110,8 @@ Install from source:
 ```bash
 git clone https://github.com/agentscope-ai/ReMe.git
 cd ReMe
-pip install -e packages/reme_ai_studio -e ".[core]"
-cd website
+pip install -e reme_studio -e ".[core]"
+cd reme_studio
 npm ci
 npm run build:static
 cd ..
@@ -100,16 +119,18 @@ cd ..
 
 The static build requires Node.js 22.13 or newer and makes Studio available from the source tree.
 
-### DeepSeek Harness Integration
+### Docker
 
-With the ReMe service running, install the npm package into the DeepSeek Harness Web profile:
+With Docker and Compose 2.24.0+, build and start ReMe with the bundled Studio:
 
 ```bash
-dsh plugin --profile web add @agentscope-ai/reme
+mkdir -p .reme
+docker compose up --build -d
 ```
 
-The plugin recalls relevant ReMe memory before agent steps and submits completed main-agent turns for automatic memory
-capture. See the [TypeScript integration guide](packages/typescript/README.md#deepseek-harness) for configuration.
+Open <http://127.0.0.1:2333>. The complete workspace persists in `./.reme`. On Linux, set `REME_UID` and `REME_GID` to your
+user's IDs when they differ from 1000. See [Docker deployment](https://reme.agentscope.io/en/docker) for model credentials,
+custom paths, published images, and upgrades.
 
 ### Environment Variables
 
@@ -122,7 +143,7 @@ cat > .env <<'EOF'
 # EMBEDDING_API_KEY=sk-xxx
 # EMBEDDING_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 
-# Required for auto_memory, auto_resource, and auto_dream.
+# Required for auto_memory, auto_resource, auto_dream, and proactive refresh.
 LLM_API_KEY=sk-xxx
 LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 EOF
@@ -134,7 +155,7 @@ Basic file operations, BM25 search, wikilink traversal, and reading proactive to
 > To enable embedding-based semantic retrieval, uncomment `components.as_embedding` and
 > `components.embedding_store` in [`reme/config/default.yaml`](reme/config/default.yaml), then change
 > `components.file_store.default.embedding_store` from `""` to `default`. See the
-> [memory search guide](docs/en/memory_search.md) for details.
+> [memory search guide](https://reme.agentscope.io/en/memory_search) for details.
 
 ### Start the Service
 
@@ -155,12 +176,6 @@ reme health_check
 reme help
 curl -s http://127.0.0.1:2333/version -H 'Content-Type: application/json' -d '{}'
 ```
-
-### ReMe Studio (Optional)
-
-The `core` installation above includes Studio. After starting ReMe, open <http://127.0.0.1:2333/> to browse, edit, and
-search the workspace. To add Studio to a base installation, use `pip install "reme-ai[web]"`. See the
-[ReMe Studio guide](https://reme.agentscope.io/?doc=studio-en) for source builds, configuration, and development.
 
 ### 5-Minute Memory Demo
 
@@ -196,36 +211,56 @@ ReMe stores agent memory as readable Markdown.
 Related: [[digest/wiki/memory-as-file.md]]
 ```
 
-## 📚 Usage Guides
+### ReMe Studio (Optional)
 
-These Markdown guides cover the main user workflows and the runtime contracts implemented by the current code.
+The `core` installation includes Studio. After starting ReMe, open <http://127.0.0.1:2333/> to browse, edit, and search
+the workspace. To add Studio to a base installation, use `pip install "reme-ai[web]"`. See the
+[ReMe Studio guide](https://reme.agentscope.io/en/workspace/studio) for source builds, configuration, and development.
 
-| Guide | What you will learn |
-|-------|---------------------|
-| [Quick Start](docs/en/quick_start.md) | Install ReMe, start the service, and run the first file and memory operations. |
-| [Plugin Management](docs/en/plugin_management.md) | Install, inspect, validate, enable, and uninstall local ReMe plugins. |
-| [Memory as File](docs/en/memory_as_file.md) | Understand workspace layers, frontmatter, wikilinks, chunks, and the file-as-source-of-truth model. |
-| [Auto Memory](docs/en/auto_memory.md) | Preserve source conversations and distill reusable daily memory cards. |
-| [Auto Resource](docs/en/auto_resource.md) | Import supported text resources and turn them into source-linked daily cards. |
-| [Auto Dream](docs/en/auto_dream.md) and [Auto Link](docs/en/auto_link.md) | Consolidate daily notes into evolving digest nodes and readable wikilink relationships. |
-| [Memory Search](docs/en/memory_search.md) | Use BM25, optional vectors, RRF fusion, line-range recall, and progressive link expansion. |
-| [Proactive](docs/en/proactive.md) | Read interest topics safely and integrate them into a host agent's decision flow. |
-| [Agent Integration Scenarios](docs/en/reme_scene.md) | Choose among CLI/SKILL.md, HTTP, MCP, and embedded Python integration. |
-| [Framework](docs/en/framework.md) | Understand Application, Job, Step, Component, service, configuration, and lifecycle boundaries. |
-| [ReMe Blog](https://agentscope-ai.github.io/ReMe/?doc=en-reme-blog) | Read the product story, design rationale, examples, and benchmark summary. |
+## 🤝 Use ReMe with Your Agent
 
-## 🔌 Plugins
+ReMe can run as a local memory service accessed through the CLI, HTTP API, or MCP server, or it can be embedded in the
+host process through its Python API. Host integrations can add memory guidance, recall, and capture to the agent
+lifecycle according to the capabilities of each runtime.
 
-Plugins are optional Python distributions that contribute Component, Step, or Job backends and configuration. They are
-installed separately and enabled explicitly by configuration. Auto Fin is the complete external-plugin example; Daily
-Paper remains an optional research workflow while it is migrated to the same packaging model.
+| Agent                          | Recommended path                                                                                                                         | Available after integration                                                                             |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **DeepSeek Harness**           | Install [`@agentscope-ai/reme-dsh-plugin`](https://reme.agentscope.io/en/integrations/dsh) with `dsh plugin --profile web add @agentscope-ai/reme-dsh-plugin`. | Configurable memory guidance, `reme_search`, automatic turn capture, scheduled Auto Dream, and ReMe Status. |
+| **OpenClaw**                   | Install [`@agentscope-ai/reme-openclaw-plugin`](https://reme.agentscope.io/en/integrations/openclaw) with `openclaw plugins install clawhub:@agentscope-ai/reme-openclaw-plugin`. | Native memory tools, recall before user-triggered runs, and automatic turn capture.                     |
+| **QwenPaw**                    | Embed ReMe in-process through its Python API.                                                                                            | Reuse the host lifecycle and model config while keeping memory local and file-based.                    |
+| **Claude Code**                | Start the shared streamable HTTP MCP service and install [the ReMe plugin](https://reme.agentscope.io/en/integrations/claude-code).      | Semantic, graph, and state recall through MCP, plus asynchronous session capture through a Stop hook.   |
+| **Hermes**                     | Install [the ReMe provider](https://reme.agentscope.io/en/integrations/hermes) and choose HTTP or embedded mode.                         | Recall before model calls and asynchronous `auto_memory` after each completed turn.                     |
+| **Codex and other CLI agents** | Install or copy the [ReMe Memory skill](skills/reme_memory/SKILL.md).                                                                    | Search, read, and write memory through the CLI; automatic capture requires host lifecycle integration.  |
 
-| Plugin / workflow                             | Capability                                                                                                    |
-|-----------------------------------------------|---------------------------------------------------------------------------------------------------------------|
-| [Daily Paper](https://reme.agentscope.io/?doc=daily-paper-en) | Discover and rank papers, analyze PDFs with an agent, and generate file-native notes and a five-minute brief. |
-| [Auto Fin](https://reme.agentscope.io/?doc=auto-fin-en)       | Fetch topic-related CLS news, search ReMe history, and generate wikilink-backed Markdown reports.             |
+<p align="center"><b>Integration demos</b></p>
 
-## 📁 Memory System
+<table>
+  <tr>
+    <td align="center"></td>
+    <td width="45%" align="center"><b>Auto Memory</b></td>
+    <td width="45%" align="center"><b>Auto Dream</b></td>
+  </tr>
+  <tr>
+    <td align="center"><b>QwenPaw</b></td>
+    <td width="45%">
+      <img src="docs/figure/qwenpaw-auto-memory.gif" alt="QwenPaw Auto Memory demo" width="100%">
+    </td>
+    <td width="45%">
+      <img src="docs/figure/qwenpaw-auto-dream.gif" alt="QwenPaw Auto Dream demo" width="100%">
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><b>Claude Code</b></td>
+    <td width="45%">
+      <img src="docs/figure/cc-auto-memory.gif" alt="Claude Code Auto Memory demo" width="100%">
+    </td>
+    <td width="45%">
+      <img src="docs/figure/cc-auto-dream.gif" alt="Claude Code Auto Dream demo" width="100%">
+    </td>
+  </tr>
+</table>
+
+## 🧠 How ReMe Works
 
 > Memory as File, File as Memory.
 
@@ -233,7 +268,7 @@ ReMe treats **memory as files**, progressively processing filtered conversation 
 from `session/` and `resource/` into `daily/`, then `digest/`. The default workspace is `.reme/` under the current
 directory; `workspace_dir=...` selects a different user-owned location.
 
-### Directory Structure
+### Workspace Layout
 
 ```text
 <workspace_dir>/
@@ -269,18 +304,18 @@ directory; `workspace_dir=...` selects a different user-owned location.
   <img src="docs/figure/reme-overview.svg" alt="ReMe file-based memory system overview" width="92%">
 </p>
 
-## 🧭 Memory Design Philosophy
+### Memory Lifecycle
 
 ReMe follows a capture → index → consolidate → recall loop. Workspace files remain the durable source of truth;
 everything under `metadata/` is rebuildable.
 
 | Capability                                  | Entry point                                     | What it does                                                                                                                                                   | Output                                                        |
-|---------------------------------------------|-------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
-| [`auto_memory`](docs/en/auto_memory.md)     | Agent hook or `reme auto_memory`                | Distills useful conversation facts while preserving a filtered conversation source record.                                                                     | `session/dialog/*.jsonl`, `daily/<date>/<generated-name>.md`  |
-| [`auto_resource`](docs/en/auto_resource.md) | Resource watcher or `reme auto_resource`        | Turns files under `resource/` into source-linked, content-named daily cards.                                                                                   | `daily/<date>/<resource-card>.md`                             |
-| [`auto_index`](docs/en/memory_search.md)    | Background watcher or `reme reindex`            | Live-indexes Markdown in `daily/` and `digest/`; a full rebuild also scans `resource/` and JSONL.                                                              | Searchable chunks, BM25, wikilink graph, and optional vectors |
-| [`auto_dream`](docs/en/auto_dream.md)       | `dream_cron` or `reme auto_dream`               | By default, extracts up to five reusable units from changed files in the latest two-day window, then creates, corroborates, refines, or corrects digest nodes. | `digest/**`, `daily/<date>/interests.yaml`                    |
-| [`proactive`](docs/en/proactive.md)         | `reme proactive` before an agent decides to act | Reads topics generated by `auto_dream`; the host agent decides whether and how to mention them.                                                                | Structured topics from `daily/<date>/interests.yaml`          |
+| ------------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [`auto_memory`](https://reme.agentscope.io/en/auto_memory)     | Agent hook or `reme auto_memory`                | Distills useful conversation facts while preserving a filtered conversation source record.                                                                     | `session/dialog/*.jsonl`, `daily/<date>/<generated-name>.md`  |
+| [`auto_resource`](https://reme.agentscope.io/en/auto_resource) | Resource watcher or `reme auto_resource`        | Turns files under `resource/` into source-linked, content-named daily cards.                                                                                   | `daily/<date>/<resource-card>.md`                             |
+| [`auto_index`](https://reme.agentscope.io/en/memory_search)    | Background watcher or `reme reindex`            | The watcher ingests Markdown from `daily/` and `digest/`; `reindex` only rebuilds BM25 and embeddings from already-ingested chunks.                            | Searchable chunks, BM25, wikilink graph, and optional vectors |
+| [`auto_dream`](https://reme.agentscope.io/en/auto_dream)       | `dream_cron` or `reme auto_dream`               | By default, extracts up to five reusable units from changed files in the latest two-day window, then creates, corroborates, refines, or corrects digest nodes. | `digest/**`                                                   |
+| [`proactive_read`](https://reme.agentscope.io/en/proactive)    | `reme proactive_read` before an agent decides to act | Reads topics generated by the independent proactive refresh flow; the host agent decides whether and how to mention them.                                      | Structured topics from `daily/<date>/interests.yaml`          |
 
 <table>
   <tr>
@@ -305,88 +340,86 @@ Search returns matching chunks with line ranges and bounded wikilink neighbors. 
 BM25 through reciprocal rank fusion (RRF).
 
 > [!IMPORTANT]
-> `proactive` only reads and exposes interest topics produced by Auto Dream. It does not independently browse the web,
+>
+> `proactive_read` only reads and exposes interest topics produced by proactive refresh. It does not independently browse the web,
 > send notifications, or rewrite the knowledge base; the host agent decides whether and how to act on a topic.
 
-## 📊 Performance
+## 📊 Benchmarks
 
 ReMe evaluates multi-session and long-context memory with agentic search-and-read workflows. The figures below are the
 published reference runs in this repository; model, prompt, dataset, and judging details are documented with each
 benchmark.
 
-| Benchmark                                                    | Setting      |              Sample size | Agentic score | Focus                                                              |
-|--------------------------------------------------------------|--------------|-------------------------:|--------------:|--------------------------------------------------------------------|
-| **[LongMemEval cleaned-s](https://reme.agentscope.io/?doc=longmemeval-en)** | **Overall**  |        **500 questions** |     **89.4%** | Cross-session retrieval, knowledge updates, and temporal reasoning |
-| [BEAM](https://reme.agentscope.io/?doc=beam-en)                             | 100K context | 20 cases / 400 questions |         66.1% | Ten types of long-context memory tasks                             |
-| [BEAM](https://reme.agentscope.io/?doc=beam-en)                             | 1M context   | 35 cases / 700 questions |         65.0% | Ultra-long conversation settings                                   |
+| Benchmark                                                                   | Setting      |              Sample size | Agentic score | Focus                                                              |
+| --------------------------------------------------------------------------- | ------------ | -----------------------: | ------------: | ------------------------------------------------------------------ |
+| **[LongMemEval cleaned-s](https://reme.agentscope.io/en/benchmarks/longmemeval)** | **Overall**  |        **500 questions** |     **89.4%** | Cross-session retrieval, knowledge updates, and temporal reasoning |
+| [BEAM](https://reme.agentscope.io/en/benchmarks/beam)                             | 100K context | 20 cases / 400 questions |         66.1% | Ten types of long-context memory tasks                             |
+| [BEAM](https://reme.agentscope.io/en/benchmarks/beam)                             | 1M context   | 35 cases / 700 questions |         65.0% | Ultra-long conversation settings                                   |
 
 ReMe also achieved a **0.580 PROC score across five user personas** in the repository's
-[π-Bench evaluation](https://reme.agentscope.io/?doc=pibench-en), 2.4% above NanoBot under the same test-model configuration. PROC
+[π-Bench evaluation](https://reme.agentscope.io/en/benchmarks/pibench), 2.4% above NanoBot under the same test-model configuration. PROC
 measures proactive handling of hidden intent, clarification, cross-session preferences and conventions, task
 dependencies, and underspecified requests.
 
-## 🤝 Agent-friendly Integration
+## 🧩 Extensions and Plugins
 
-ReMe can run as a local memory service accessed through the CLI, HTTP API, or MCP server, or it can be embedded in the
-host process through its Python API.
+Plugins are optional Python distributions that contribute Component, Step, or Job backends and configuration. They are
+installed separately and enabled explicitly by configuration. Daily Paper and Auto Fin are independently packaged
+plugins; see their documentation for [Daily Paper](https://reme.agentscope.io/en/plugins/daily-paper) and
+[Auto Fin](https://reme.agentscope.io/en/plugins/auto-fin).
 
-| Agents                                        | Recommended path                                                                                        | Available after integration                                                                             |
-|-----------------------------------------------|---------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
-| **QwenPaw**                                   | Embed ReMe in-process through its Python API.                                                           | Reuse the host application's lifecycle and model config while keeping memory local and file-based.      |
-| **Claude Code**                               | Start the streamable HTTP MCP service and install [integrations/claude_code/reme](integrations/claude_code/reme). | MCP recall tools, a `reme-memory` skill, and a Stop hook that records sessions automatically.           |
-| **Hermes**                                    | Start the HTTP service and install [integrations/hermes_agent](integrations/hermes_agent).                        | Recall relevant memory before model calls and enqueue `auto_memory` after each completed turn.          |
-| **Other CLI-capable agents (OpenClaw/Codex)** | Copy or install [skills/reme_memory/SKILL.md](skills/reme_memory/SKILL.md).                             | Search, read, and write memory via the CLI; automatic recording requires explicit host lifecycle hooks. |
+| Plugin                                                        | Capability                                                                                                    |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [Daily Paper](https://reme.agentscope.io/en/plugins/daily-paper) | Discover and rank papers, analyze PDFs with an agent, and generate file-native notes and a five-minute brief. |
+| [Auto Fin](https://reme.agentscope.io/en/plugins/auto-fin)       | Fetch topic-related CLS news, search ReMe history, and generate wikilink-backed Markdown reports.             |
 
-<p align="center"><b>Integration demos</b></p>
+See [Plugin Management](https://reme.agentscope.io/en/plugin_management) to install, inspect, validate, enable, and uninstall ReMe plugins.
 
-<table>
-  <tr>
-    <td align="center"></td>
-    <td width="45%" align="center"><b>Auto Memory</b></td>
-    <td width="45%" align="center"><b>Auto Dream</b></td>
-  </tr>
-  <tr>
-    <td align="center"><b>QwenPaw</b></td>
-    <td width="45%">
-      <img src="docs/figure/qwenpaw-auto-memory.gif" alt="QwenPaw Auto Memory demo" width="100%">
-    </td>
-    <td width="45%">
-      <img src="docs/figure/qwenpaw-auto-dream.gif" alt="QwenPaw Auto Dream demo" width="100%">
-    </td>
-  </tr>
-  <tr>
-    <td align="center"><b>Claude Code</b></td>
-    <td width="45%">
-      <img src="docs/figure/cc-auto-memory.gif" alt="Claude Code Auto Memory demo" width="100%">
-    </td>
-    <td width="45%">
-      <img src="docs/figure/cc-auto-dream.gif" alt="Claude Code Auto Dream demo" width="100%">
-    </td>
-  </tr>
-</table>
+## 📚 Documentation
 
-## 🛠️ ReMe Operations
+These guides cover the main user workflows and the runtime contracts implemented by the current code.
+
+| Guide                                                                     | What you will learn                                                                                 |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [Quick Start](https://reme.agentscope.io/en/quick_start)                                     | Install ReMe, start the service, and run the first file and memory operations.                      |
+| [Configuration](https://reme.agentscope.io/en/configuration)                                 | Configure the workspace, models, Service, Jobs, Components, plugins, and CLI overrides.             |
+| [Services and Deployment](https://reme.agentscope.io/en/services)                            | Use HTTP, SSE, MCP, and Studio while respecting the default security boundary.                       |
+| [Memory as File](https://reme.agentscope.io/en/memory_as_file)                               | Understand workspace layers, frontmatter, wikilinks, chunks, and the file-as-source-of-truth model. |
+| [Auto Memory](https://reme.agentscope.io/en/auto_memory)                                     | Preserve source conversations and distill reusable daily memory cards.                              |
+| [Auto Resource](https://reme.agentscope.io/en/auto_resource)                                 | Import supported text and image resources as source-linked daily cards.                             |
+| [Auto Dream](https://reme.agentscope.io/en/auto_dream) and [Auto Link](https://reme.agentscope.io/en/auto_link) | Consolidate daily notes into evolving digest nodes and readable wikilink relationships.             |
+| [Memory Search](https://reme.agentscope.io/en/memory_search)                                 | Use BM25, optional vectors, RRF fusion, line-range recall, and progressive link expansion.          |
+| [Proactive](https://reme.agentscope.io/en/proactive)                                         | Read interest topics safely and integrate them into a host agent's decision flow.                   |
+| [Application Scenarios](https://reme.agentscope.io/en/reme_scene)                            | Follow concrete financial research, coding-memory, and personal knowledge-base examples.           |
+| [Framework](https://reme.agentscope.io/en/framework)                                         | Understand Application, Job, Step, Component, service, configuration, and lifecycle boundaries.     |
+| [Agent Integrations](https://reme.agentscope.io/en/integrations)                             | Choose an interface and connect DSH, Claude Code, OpenClaw, Hermes, Codex, or another agent.          |
+| [DSH plugin](https://reme.agentscope.io/en/integrations/dsh) and [Claude Code plugin](https://reme.agentscope.io/en/integrations/claude-code) | Configure host-native recall, automatic capture, consolidation, and diagnostics. |
+| [CLI and Job API](https://reme.agentscope.io/en/reference/cli)                               | Learn command syntax and use the generated default Job parameter reference.                         |
+| [Operations and Recovery](https://reme.agentscope.io/en/operations)                          | Diagnose services, maintain indexes, and back up, migrate, or recover a workspace.                   |
+| [ReMe Blog](https://reme.agentscope.io/en/reme-blog)                      | Read the product story, design rationale, examples, and benchmark summary.                           |
+
+## 🛠️ Common Commands
 
 Run `reme help` for the full job list. Common workspace and maintenance commands are:
 
-| Command                                   | Purpose                                                                                |
-|-------------------------------------------|----------------------------------------------------------------------------------------|
-| `reme status`                             | Show stateful data-component memory estimates and process RSS.                         |
-| [`reme search`](docs/en/memory_search.md) | Retrieve memory with BM25 and wikilinks by default, plus vectors when enabled.         |
-| `reme read` / `reme write` / `reme edit`  | Inspect and maintain Markdown memory files.                                            |
-| `reme traverse` / `reme graph_snapshot`   | Explore wikilink neighborhoods or the category-rooted digest graph.                    |
-| `reme chat`                               | Stream a read-only, workspace-aware agent conversation. Requires LLM credentials.      |
-| `reme reindex`                            | Rebuild search and wikilink indexes from existing files.                               |
+| Command                                   | Purpose                                                                           |
+| ----------------------------------------- | --------------------------------------------------------------------------------- |
+| `reme status`                             | Show stateful data-component memory estimates and process RSS.                    |
+| [`reme search`](https://reme.agentscope.io/en/memory_search) | Retrieve memory with BM25 and wikilinks by default, plus vectors when enabled.    |
+| `reme read` / `reme write` / `reme edit`  | Inspect and maintain Markdown memory files.                                       |
+| `reme traverse` / `reme graph_snapshot`   | Explore wikilink neighborhoods or the category-rooted digest graph.               |
+| `reme chat`                               | Stream a read-only, workspace-aware agent conversation. Requires LLM credentials. |
+| `reme reindex`                            | Rebuild BM25 and embedding indexes from already-ingested chunks.                  |
 
-## 🤝 Community and Support
+## 🤝 Community and Contributing
 
 - **Issues, requests, and help**: Check [Open Issues](https://github.com/agentscope-ai/ReMe/issues) first. If there is no
   related discussion, open one with the background, expected behavior, and impact scope.
-- **Code contributions**: Before making changes, read
-  the [contribution guide](https://docs.agentscope.io/reme/latest/en/contribution). Source, schemas, and tests are the
-  authoritative architecture and extension guide.
-- **Documentation contributions**: Submit user-facing documentation changes to the
-  [unified documentation repository](https://github.com/agentscope-ai/docs) under `reme/<version>/{en,zh}/`.
+- **Code contributions**: Before making changes, read the repository's
+  [contribution guide](https://reme.agentscope.io/en/contributing). Source, schemas, and tests are the authoritative architecture and
+  extension guide.
+- **Documentation contributions**: Update the canonical files under `docs/en/`, `docs/zh/`, or the relevant package
+  directory in this repository. The documentation site is generated from these files.
 - **Commit convention**: Conventional Commits are recommended, for example `feat(search): add link expansion option` or
   `docs(zh): update quick start`.
 - **Pre-submit checks**: Before submitting a PR, try to run `pre-commit run --all-files` and `pytest`. If tests that

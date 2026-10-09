@@ -1,4 +1,11 @@
+---
+title: Quick Start
+description: Install and start ReMe, then complete a first file, retrieval, and automatic-memory workflow.
+---
+
 # Quick Start
+
+This page gets one working loop running. See [Configuration](./configuration.md) for the full configuration contract and [Services and Deployment](./services.md) for HTTP or MCP integration.
 
 ## Installation
 
@@ -15,8 +22,8 @@ Install from source:
 ```bash
 git clone https://github.com/agentscope-ai/ReMe.git
 cd ReMe
-pip install -e packages/reme_ai_studio -e ".[core]"
-cd website
+pip install -e reme_studio -e ".[core]"
+cd reme_studio
 npm ci
 npm run build:static
 cd ..
@@ -27,7 +34,7 @@ The static build step requires Node.js 22.13 or newer and makes Studio available
 Installing the `core` extra is recommended. The current code imports the AgentScope wrapper, and self-evolving memory
 also depends on it.
 
-To use agent workflows such as `auto_memory`, `auto_resource`, and `auto_dream`, configure an LLM:
+To use agent workflows such as `auto_memory`, `auto_resource`, `auto_dream`, and proactive refresh, configure an LLM:
 
 ```bash
 cat > .env <<'EOF'
@@ -113,11 +120,14 @@ Related link: [[digest/wiki/search-demo.md]]"
 and
 `description` are written to frontmatter.
 
-The background watcher builds the index automatically. You can also rebuild it manually:
+The background watcher ingests workspace files automatically. You can manually rebuild the derived BM25 and embedding
+indexes from the chunks it has already ingested:
 
 ```bash
 reme reindex
 ```
+
+This command does not scan workspace files, rechunk content, or rebuild the wikilink graph.
 
 Search:
 
@@ -182,8 +192,8 @@ reme auto_memory \
 ```
 
 After placing external material under `resource/YYYY-MM-DD/` or directly under `resource/`, the default background task
-watches
-`md/txt/json/jsonl/csv/yaml/html`. You can also trigger processing manually:
+watches text resources (`md/txt/json/jsonl/csv/yaml/html`) and image resources
+(`png/jpg/jpeg/webp/gif/bmp/tiff/heic`). You can also trigger processing manually:
 
 ```bash
 reme auto_resource changes='[{"path":"resource/2026-06-20/report.md","change":"added"}]'
@@ -193,7 +203,7 @@ Distill daily notes into long-term digest memory:
 
 ```bash
 reme auto_dream date=2026-06-20
-reme proactive date=2026-06-20
+reme proactive_read date=2026-06-20
 ```
 
 These flows require a working LLM. Without an LLM configuration, start with basic capabilities such as `write`, `read`,
@@ -234,3 +244,5 @@ You can also specify a YAML or JSON configuration file:
 ```bash
 reme start config=/path/to/custom.yaml
 ```
+
+Continue with the [CLI Reference](./reference/cli.md), [Job API Reference](./reference/jobs.md), or [Diagnostics, Backup, and Recovery](./operations.md).

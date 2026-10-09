@@ -15,7 +15,7 @@ plugins: [auto-fin]             为一个 Application 启用已安装插件
 典型的插件使用流程分为三个阶段：
 
 1. 安装 ReMe 和插件 distribution。
-2. 按照 [ReMe 环境变量说明](../../README_ZH.md#环境变量)配置插件运行所需的环境变量。
+2. 按照 [ReMe 可选模型配置说明](../../README_ZH.md#可选模型配置)配置插件运行所需的环境变量。
 3. 启动 Application 时显式启用插件，例如 `reme start plugins='["auto-fin"]'`。
 
 ## 查看已安装插件
@@ -29,7 +29,7 @@ reme plugins list
 ```text
 PLUGIN    DISTRIBUTION   VERSION  FORMAT
 --------  -------------  -------  --------
-auto-fin  reme-auto-fin  0.1.0    manifest
+auto-fin  reme-auto-fin  X.Y.Z    manifest
 ```
 
 `manifest` 表示插件使用当前的 package-level `plugin.yaml` 契约；`legacy` 表示插件使用仍然兼容的 Python descriptor
@@ -61,24 +61,24 @@ reme plugins list --json
 对照某个应用配置查看启用状态：
 
 ```bash
-reme plugins list --config daily_cookbook
+reme plugins list --config default
 ```
 
 可选的 `ENABLED` 列只反映该配置解析出的 `plugins` 列表。其他运行中进程使用的 CLI override 不是全局启用状态。
 
 ## 安装插件包
 
-安装已发布的 distribution：
+使用包名安装已发布的 distribution：
 
 ```bash
-reme plugins install reme-auto-fin
+reme plugins install your-plugin-package
 ```
 
 安装指定版本或升级：
 
 ```bash
-reme plugins install 'reme-auto-fin==0.1.0'
-reme plugins install reme-auto-fin --upgrade
+reme plugins install 'your-plugin-package==X.Y.Z'
+reme plugins install your-plugin-package --upgrade
 ```
 
 安装本地插件项目：
@@ -167,11 +167,18 @@ curl -s http://127.0.0.1:2333/auto_fin \
 
 当应用使用 MCP service 时，允许对外服务的插件 Job 会显示为 MCP tool。
 
-如果需要将插件叠加到其他应用配置，则显式选择该配置：
+自定义应用配置需要提供插件的运行依赖，包括 `agent_wrapper.default`、启用 tag index 的
+`file_store.default`，以及 Auto Fin 和自动标签使用的 `search`、`read`、`list_tags`、
+`frontmatter_read` 和 `frontmatter_update` Jobs。
 
-```bash
-reme start config=daily_cookbook plugins='["auto-fin"]'
-```
+## Benchmark 应用配置
+
+[LME](../../plugins/lme/README_ZH.md) 和 [BEAM](../../plugins/beam/README_ZH.md) 插件通过
+`plugin.yaml` 注册 backend 和插件拥有的 Job。ReMe 内置的 `benchmark` 配置提供公共核心 Job 和
+Component，并且不继承 `default`，因此不包含默认后台和定时任务。先安装所需的 benchmark 插件，
+再使用 `config=benchmark`，同时指定 `plugins=["lme"]` 或 `plugins=["beam"]`。仓库内的 benchmark
+runner 会自动启用对应的已安装插件；editable 安装可让本地源码修改直接生效。数据集 runner 仍位于
+`benchmark/`。
 
 ## 卸载插件
 

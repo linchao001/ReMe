@@ -6,7 +6,11 @@ import sys
 
 import psutil
 
-from ..constants import REME_DEFAULT_HOST, REME_DEFAULT_PORT
+from ..constants import (
+    REME_DEFAULT_HOST,
+    REME_DEFAULT_PORT,
+    normalize_connect_host,
+)
 
 
 async def find_reme(host: str, port: int) -> str:
@@ -14,7 +18,7 @@ async def find_reme(host: str, port: int) -> str:
     from ..components.client.http_client import HttpClient
 
     try:
-        async with HttpClient(host=host, port=port, timeout=2.0) as client:
+        async with HttpClient(host=normalize_connect_host(host), port=port, timeout=2.0) as client:
             async for _ in client(action="health_check"):
                 break
         return "reme"
@@ -47,23 +51,61 @@ def _pid_on_port(port: int) -> int | None:
     return None
 
 
+def _start_arguments(cmdline: list[str]) -> list[str] | None:
+    """Identify a ReMe CLI process, excluding supervisors containing child argv."""
+    if not cmdline:
+        return None
+
+    def command_name(value: str) -> str:
+        return value.replace("\\", "/").rsplit("/", 1)[-1].lower()
+
+    executable = command_name(cmdline[0])
+    if executable in {"reme", "reme.exe"}:
+        action_index = 1
+    elif executable.startswith(("python", "pypy")):
+        action_index = next(
+            (
+                index
+                for index in range(2, len(cmdline))
+                if command_name(cmdline[index - 1]) in {"reme", "reme.exe", "reme.py", "reme.reme"}
+            ),
+            len(cmdline),
+        )
+        if "-c" in cmdline[:action_index]:
+            return None
+    else:
+        return None
+    if action_index >= len(cmdline) or cmdline[action_index] not in {"start", "-start", "--start"}:
+        return None
+    return [argument for argument in cmdline[action_index + 1 :] if "=" in argument]
+
+
 def _scan_reme_procs() -> list[tuple[int, str, int]]:
     """List running 'reme ... start' processes as (pid, host, port)."""
+    from ..config import parse_kwargs, resolve_app_config
+
     procs: list[tuple[int, str, int]] = []
     for proc in psutil.process_iter(["pid", "cmdline"]):
         try:
             cmdline = proc.info["cmdline"] or []
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
-        # Match a `reme ... start` invocation (mirrors the old `pgrep -af`).
-        if "start" not in cmdline or not any("reme" in tok for tok in cmdline):
+        arguments = _start_arguments(cmdline)
+        if arguments is None:
             continue
-        host, port = REME_DEFAULT_HOST, REME_DEFAULT_PORT
-        for t in cmdline:
-            if t.startswith("service.host="):
-                host = t.split("=", 1)[1]
-            elif t.startswith("service.port=") and t.split("=", 1)[1].isdigit():
-                port = int(t.split("=", 1)[1])
+        try:
+            overrides = parse_kwargs(*arguments)
+        except ValueError:
+            continue
+        try:
+            config = resolve_app_config(log_config=False, **overrides)
+        except (OSError, ValueError):
+            # A different process's relative config file may be unavailable.
+            config = overrides
+        service = config.get("service") or {}
+        host = service.get("host") or REME_DEFAULT_HOST
+        port_value = str(service.get("port", REME_DEFAULT_PORT))
+        port = int(port_value) if port_value.isdigit() else REME_DEFAULT_PORT
         procs.append((proc.info["pid"], host, port))
     return procs
 
@@ -81,10 +123,9 @@ def _reme_start_argv() -> list[list[str]]:
             cmdline = proc.info["cmdline"] or []
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
-        if "start" not in cmdline or not any("reme" in tok for tok in cmdline):
-            continue
-        start_idx = cmdline.index("start")
-        argvs.append([t for t in cmdline[start_idx + 1 :] if "=" in t])
+        arguments = _start_arguments(cmdline)
+        if arguments is not None:
+            argvs.append(arguments)
     return argvs
 
 
@@ -124,7 +165,7 @@ async def locate_reme() -> tuple[str, int, int | None] | None:
         return REME_DEFAULT_HOST, REME_DEFAULT_PORT, _pid_on_port(REME_DEFAULT_PORT)
     for pid, host, port in _scan_reme_procs():
         if await find_reme(host, port) == "reme":
-            return host, port, pid
+            return normalize_connect_host(host), port, pid
     return None
 
 
@@ -135,7 +176,7 @@ def precheck_start(svc_config: dict | None) -> bool:
     port = int(port)
     status = asyncio.run(find_reme(host, port))
     if status == "reme":
-        print(f"reme already running at {host}:{port}")
+        print(f"reme already running at {normalize_connect_host(host)}:{port}")
         return False
     if status == "occupied":
         print(
