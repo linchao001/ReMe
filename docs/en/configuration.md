@@ -104,7 +104,13 @@ components:
         base_url: ${LLM_BASE_URL:-}
 ```
 
-Built-in registrations include `openai`, `anthropic`, `dashscope`, `deepseek`, `gemini`, `moonshot`, `ollama`, and `xai`. Their detailed model fields follow the corresponding AgentScope wrappers.
+Built-in registrations include `openai`, `anthropic`, `dashscope`, `deepseek`, `gemini`, `moonshot`, `ollama`,
+`xai`, and `langchain`. The first eight follow the corresponding AgentScope wrappers; `langchain` builds
+`langchain_openai.ChatOpenAI` (install `reme-ai[langchain]`).
+
+Embedded hosts may also inject a live LangChain chat model, or a provider with `invoke_messages` / `bind_tools`, via
+`await app.update_component("as_llm", "default", model=...)`. ReMe coerces it to `LangChainChatModel`
+(`ChatModelBase`) so the default `agentscope` agent_wrapper can run jobs such as `auto_memory` on that same object.
 
 File operations, BM25 search, wikilink traversal, and `proactive_read` do not require an LLM. Evolution workflows such
 as `auto_memory`, `auto_resource`, `auto_dream`, and proactive refresh do.

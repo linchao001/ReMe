@@ -66,6 +66,10 @@ image-heif = [
     "pillow>=10.0.0",
     "pillow-heif>=0.13.0",
 ]
+langchain = [
+    "langchain-core>=0.3.0",
+    "langchain-openai>=0.3.0",
+]
 dev = [
     "packaging>=24.2",
     "pre-commit>=4.6.1",

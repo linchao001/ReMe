@@ -108,7 +108,14 @@ components:
         base_url: ${LLM_BASE_URL:-}
 ```
 
-可注册的内置 backend 包括 `openai`、`anthropic`、`dashscope`、`deepseek`、`gemini`、`moonshot`、`ollama` 和 `xai`。实际字段由对应 AgentScope model wrapper 决定。
+可注册的内置 backend 包括 `openai`、`anthropic`、`dashscope`、`deepseek`、`gemini`、`moonshot`、`ollama`、
+`xai` 和 `langchain`。前八个由对应 AgentScope model wrapper 决定字段；`langchain` 通过
+`langchain_openai.ChatOpenAI` 构造（需安装 `reme-ai[langchain]`）。
+
+嵌入式宿主也可以把已有的 LangChain chat model，或带 `invoke_messages` / `bind_tools` 的 provider，通过
+`await app.update_component("as_llm", "default", model=...)` 注入；ReMe 会自动包成
+`LangChainChatModel`（`ChatModelBase`），供默认 `agentscope` agent_wrapper 使用，从而复用同一运行时对象跑
+`auto_memory` 等 job。
 
 基础文件操作、BM25 检索、wikilink 遍历和 `proactive_read` 不需要 LLM。`auto_memory`、`auto_resource`、
 `auto_dream` 和 proactive refresh 等演化流程需要可用 LLM。
