@@ -51,7 +51,7 @@ class ApplicationConfig(BaseModel):
         default="",
         description=(
             "Root directory for shared knowledge-base entities. "
-            "Empty uses REME_KNOWLEDGE_BASES_DIR or ~/.reme/knowledge_bases."
+            "Empty uses REME_KNOWLEDGE_BASES_DIR or ~/.zhb."
         ),
     )
     knowledge_base_id: str = Field(

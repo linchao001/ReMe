@@ -78,7 +78,7 @@ TESTCASE_EXTRACT_PROMPT_ZH = """\
 3. 覆盖笔记中出现的全部可复用测试知识；同一用例/场景只输出一个单元。
 4. 每个单元给出：
    - name（短标题，如「支付-余额不足应拒绝」）
-   - bucket（test/test_design | test/test_cases | test/test_data | test/defects）
+   - bucket（test/test_design | test/test_outline | test/test_cases | test/test_data | test/defects）
    - summary（1-3句概述，覆盖可复用要点：场景边界、关键步骤/预期或缺陷模式）
    - confidence（0-1）
    - signals（依据片段摘要列表，尽量用笔记原句）
@@ -95,7 +95,8 @@ TESTCASE_EXTRACT_PROMPT_ZH = """\
    - CORROBORATE：同一用例再次被确认，追加来源即可。
    - REFINE：补步骤、前置、边界或预期。
    - CORRECT：修正错误步骤/预期。
-6. test/test_design 放测试场景/等价类划分/边界设计；test/test_cases 放具体用例；
+6. test/test_design 放测试场景/等价类划分/边界设计；test/test_outline 放测试大纲
+   （覆盖范围/模块划分/测试项清单）；test/test_cases 放具体用例；
    test/test_data 放可复用测试数据集；test/defects 放沉淀的缺陷模式（不是一次性 bug）。
    不要从笔记 CREATE test/ui_pages 或 test/ui_locators（由 UI 定位工具维护）。
 7. 最多返回 {max_units} 个单元；达到上限时优先更稳定、可执行的用例。
@@ -121,7 +122,7 @@ Rules:
 3. Cover every reusable test claim in the notes; one unit per case/scenario.
 4. For each unit provide:
    - name (short title, e.g. "Payment - insufficient balance should reject")
-   - bucket (test/test_design | test/test_cases | test/test_data | test/defects)
+   - bucket (test/test_design | test/test_outline | test/test_cases | test/test_data | test/defects)
    - summary (1-3 sentences covering the durable claim: scenario
      boundaries, key steps/expected, or defect pattern)
    - confidence (0-1)
@@ -142,6 +143,8 @@ Rules:
    - REFINE: add steps, preconditions, boundaries, or expected results.
    - CORRECT: fix wrong steps / expected results.
 6. test/test_design holds scenarios/equivalence-class/boundary designs;
+   test/test_outline holds test outlines (coverage scope / module
+   breakdown / test-item checklists);
    test/test_cases holds concrete cases; test/test_data holds reusable data
    sets; test/defects holds distilled defect patterns (not one-off bugs).
    Do not CREATE test/ui_pages or test/ui_locators from notes (tool-maintained).
@@ -162,7 +165,7 @@ KB_MEMORY_GUIDANCE_ZH_EXTRA = """\
 - **知识库**（`{knowledge_dir}/`）— 可跨智能体共享的正式知识（published），按域分桶：
   - `business/`：业务知识（产品/研发/测试共同维护）—— `wiki` / `procedure` / `personal` / `dbInfo` / `openapi`
   - `test/`：测试制品（QA 维护）—— `test_design`（场景/等价类/边界设计）、
-    `test_cases`（用例本体）、`test_data`（可复用数据集）、`defects`（缺陷模式）、
+    `test_outline`（测试大纲）、`test_cases`（用例本体）、`test_data`（可复用数据集）、`defects`（缺陷模式）、
     `ui_pages`（页面/控件业务可读定位图，无 selector）、
     `ui_locators`（可执行定位，供 UI 自动化 resolve）
   - `_inbox` 为待审内容，默认不召回。
@@ -184,7 +187,7 @@ KB_MEMORY_GUIDANCE_ZH_EXTRA = """\
 - 业务智能体默认 `business`（不含测试制品）；测试智能体默认全部 published
 - `all`：全部 published 知识
 - `business` / `test`：按域
-- `business/wiki`、`business/dbInfo`、`business/openapi`、`test/test_cases`、`test/ui_pages`、`test/ui_locators` 等：按桶（含旧版扁平 `wiki` / `procedure` / `personal`）
+- `business/wiki`、`business/dbInfo`、`business/openapi`、`test/test_cases`、`test/test_outline`、`test/ui_pages`、`test/ui_locators` 等：按桶（含旧版扁平 `wiki` / `procedure` / `personal`）
 
 ### 🎯 召回粒度 recall
 `memory_search(query, recall=...)`：
@@ -209,7 +212,8 @@ KB_MEMORY_GUIDANCE_EN_EXTRA = """\
   - `business/`: business knowledge (product/dev/qa jointly maintained) —
     `wiki` / `procedure` / `personal` / `dbInfo` / `openapi`
   - `test/`: test artifacts (QA-owned) — `test_design` (scenarios /
-    equivalence classes / boundary designs), `test_cases` (concrete
+    equivalence classes / boundary designs), `test_outline` (test
+    outlines), `test_cases` (concrete
     cases), `test_data` (reusable data sets), `defects` (defect patterns),
     `ui_pages` (business-readable page/control maps, no selectors),
     `ui_locators` (executable locators for UI automation resolve)
@@ -237,6 +241,7 @@ treated as hits. `_inbox` / `_audit` are not indexed for search.
 - `all`: every published domain
 - `business` / `test`: by domain
 - `business/wiki`, `business/dbInfo`, `business/openapi`, `test/test_cases`,
+  `test/test_outline`,
   `test/ui_pages`, `test/ui_locators`, …: by bucket (legacy flat
   `wiki` / `procedure` / `personal` are accepted)
 

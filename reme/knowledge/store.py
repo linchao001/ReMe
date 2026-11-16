@@ -25,6 +25,7 @@ BUSINESS_BUCKETS = (
 )
 TEST_BUCKETS = (
     "test/test_design",
+    "test/test_outline",
     "test/test_cases",
     "test/test_data",
     "test/defects",
@@ -55,11 +56,11 @@ class KnowledgeBaseMeta(BaseModel):
 
 
 def default_knowledge_bases_dir() -> Path:
-    """Return the default shared-KB root under the ReMe home directory."""
+    """Return the default shared-KB root under ``~/.zhb``."""
     override = (os.environ.get(_DEFAULT_KB_ROOT_ENV) or "").strip()
     if override:
         return Path(override).expanduser().resolve()
-    return Path.home() / ".reme" / "knowledge_bases"
+    return Path.home() / ".zhb"
 
 
 def resolve_knowledge_bases_dir(value: str | None = None) -> Path:

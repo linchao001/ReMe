@@ -1,6 +1,6 @@
 # Personal long-term memory + shared business knowledge base in one ReMe instance.
 # Personal memory (daily/digest/dream) stays in workspace_dir; business KB mounts at
-# workspace/{knowledge_dir} from ~/.reme/knowledge_bases (or REME_KNOWLEDGE_BASES_DIR).
+# workspace/{knowledge_dir} from ~/.zhb (or REME_KNOWLEDGE_BASES_DIR).
 #
 # Start: reme start  (with REME_CONFIG=personal_with_kb in .env or shell)
 #        reme start config=personal_with_kb

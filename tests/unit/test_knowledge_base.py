@@ -12,6 +12,7 @@ from reme.knowledge.store import (
     canonicalize_published_bucket,
     default_knowledge_bases_dir,
     ensure_kb,
+    kb_root,
     knowledge_bucket_choices,
     knowledge_published_path_prefixes,
     knowledge_scope_path_prefixes,
@@ -22,7 +23,8 @@ from reme.knowledge.store import (
 
 
 def test_default_knowledge_bases_dir():
-    assert default_knowledge_bases_dir() == Path.home() / ".reme" / "knowledge_bases"
+    assert default_knowledge_bases_dir() == Path.home() / ".zhb"
+    assert kb_root("zhb_kb") == Path.home() / ".zhb" / "zhb_kb"
 
 
 def test_knowledge_scope_prefixes_cover_domains():
@@ -91,6 +93,25 @@ def test_ui_locator_buckets_are_published():
     assert knowledge_scope_path_prefixes("knowledge", bucket="test/ui_locators") == [
         "knowledge/test/ui_locators/",
     ]
+
+
+def test_test_outline_is_published_bucket():
+    from reme.knowledge.store import TEST_BUCKETS
+
+    assert "test/test_outline" in TEST_BUCKETS
+    assert "test/test_outline" in PUBLISHED_BUCKETS
+    assert "test/test_outline" in knowledge_bucket_choices()
+    assert canonicalize_published_bucket("test/test_outline") == "test/test_outline"
+    assert canonicalize_published_bucket("TEST/TEST_OUTLINE") == "test/test_outline"
+    assert knowledge_scope_path_prefixes("knowledge", bucket="test/test_outline") == [
+        "knowledge/test/test_outline/",
+    ]
+
+
+def test_ensure_kb_creates_test_outline_bucket(tmp_path):
+    ensure_kb("demo", knowledge_bases_dir=tmp_path / "knowledge_bases")
+    root = tmp_path / "knowledge_bases" / "demo"
+    assert (root / "test" / "test_outline").is_dir()
 
 
 def test_ensure_kb_creates_ui_locator_buckets(tmp_path):
@@ -184,6 +205,7 @@ def test_augment_jobs_for_knowledge_appends_once(tmp_path):
 
 def test_list_and_read_zhb_kb_if_present():
     candidates = (
+        Path.home() / ".zhb",
         Path.home() / ".reme" / "knowledge_bases",
         Path.home() / ".qwenpaw" / "knowledge_bases",
     )
